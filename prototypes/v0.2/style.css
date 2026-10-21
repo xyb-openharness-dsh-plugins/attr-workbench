@@ -488,7 +488,6 @@ dialog::backdrop{background:rgba(28,43,58,.36);backdrop-filter:blur(2px)}
 .actions .hero-ai svg{width:15px;height:15px;flex:0 0 15px}
 
 /* ---------- ATTR 追加 ---------- */
-.brand.no-mark::before{content:"淀"}
 .hero-mascot{font-size:52px;font-weight:600;color:var(--violet-deep);background:var(--violet-soft);border-color:#fff}
 .mface .val{font-variant-numeric:tabular-nums}
 .card h3{font-size:13.5px}

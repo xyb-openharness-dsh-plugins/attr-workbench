@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 未发布 — 品牌定名
+
+### 变更
+
+- 品牌由「小淀宝 / AmyPal」改为「**淀粉宝宝 / ATTR-Pal**」。「淀粉宝宝」取自病友自称「淀粉人」，保留 `淀粉` 词根以免与《淀粉样变性》脱节；仓库名与包名仍为 `attr-workbench`（改名只涉及 8 处展示字符串，不动工程标识）。
+- 侧栏品牌标识从文字徽标换成形象图 `prototypes/v0.2/brand-icon.png`；副标题收为「ATTR-Pal · 型别与两条线」，避免窄侧栏折行。
+
+### 新增
+
+- `assets/brand/`：`attr-logo.png`（1024 横版 lockup）/ `attr-mascot.png`（1024 纯形象）/ `attr-icon-512.png`（512 图标），源图留档 `raw-mascot-2026-10-21.png`。
+- `docs/BRAND.md`：定名理由、颜色表、形象规则、资产清单、调色三行代码、使用红线。
+
 ## 0.1.0 — 2026-10-21
 
 阶段 1（调研 + SPEC + Schema + 临床库 + 原型）首个交付版本。**未接 DSH、未装机。**

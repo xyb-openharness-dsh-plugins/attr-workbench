@@ -138,7 +138,7 @@ NYHA 是心脏功能，FAP 分期是神经病变，Gillmore 分期是心脏分�
 
 | 项 | 默认 | 改哪里 |
 | --- | --- | --- |
-| 品牌名 | 小淀宝 / AmyPal（占位） | `prototypes/v0.2/index.html`、`package.json` |
+| 品牌名 | 淀粉宝宝 / ATTR-Pal（占位） | `prototypes/v0.2/index.html`、`package.json` |
 | 主色 | `#2e6e7e`（青，区别于肠癌蓝/胃癌绿/食管紫/宫颈青绿） | `style.css` `--violet` |
 | 一图秀默认三条 | NT-proBNP + eGFR + NYHA | `app.js` `state.sel` |
 | 演示档案 | A 陈志远 61 岁遗传型 / B 周德昌 77 岁野生型 | `demo/build-demo-data.mjs` |

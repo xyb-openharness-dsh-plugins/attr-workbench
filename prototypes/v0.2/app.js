@@ -1,5 +1,5 @@
 'use strict';
-/* 小淀宝 AmyPal v0.1.0 — 交互原型。
+/* 淀粉宝宝 ATTR-Pal v0.1.0 — 交互原型。
    患者资料全部为模拟；临床试验条目为真实登记摘录（状态未核实）。
    不读写真实文件、不调用模型或宿主 API。
 
@@ -795,7 +795,7 @@ function settingsDialog(tab = '工作区') {
   const tabs = ['工作区', '显示与字号', '隐私', '关于'];
   const body = `<div class="cfg-tabs" role="tablist">${tabs.map(t => `<button role="tab" data-cfg="${t}" aria-selected="${t === tab}">${t}</button>`).join('')}</div>
   <div style="margin-top:14px">${cfgBody(tab)}</div>`;
-  openDialog('设置', '小淀宝 AmyPal', body, `<button data-action="close">完成</button>`);
+  openDialog('设置', '淀粉宝宝 ATTR-Pal', body, `<button data-action="close">完成</button>`);
 }
 function cfgBody(tab) {
   if (tab === '显示与字号') {
@@ -817,7 +817,7 @@ function cfgBody(tab) {
       <div><dt>立场</dt><dd>只提供信息，不做诊断与处置建议</dd></div></dl></div></div>`;
   }
   return `<div class="cfg-block"><h3>资料目录</h3>
-    <div class="path-row"><code>~/Documents/AmyPal 演示资料（原型不读写真实文件）</code><button class="soft" data-action="mock-dir">更换</button></div>
+    <div class="path-row"><code>~/Documents/ATTR-Pal 演示资料（原型不读写真实文件）</code><button class="soft" data-action="mock-dir">更换</button></div>
     <p class="small-note">开发版必须由你明确选择目录，不猜路径、不静默建目录；原件留在目录内，不上传。</p>
     <div class="divider"></div><h3>解析与临床库</h3>
     <div class="grid three"><div class="stat-tile"><span>文档解析</span><b>未接入</b></div><div class="stat-tile"><span>临床库</span><b>434 条</b></div><div class="stat-tile"><span>数据截止</span><b>2026-10-21</b></div></div>
