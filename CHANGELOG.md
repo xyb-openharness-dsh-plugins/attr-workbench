@@ -1,5 +1,40 @@
 # CHANGELOG
 
+## 未发布 — 阶段 2 开发版移植（2026-10-21 晚）
+
+ZERO-TO-DEV 阶段 2 的六步移植完成前四项：数据层 / 工程骨架 / 前端 / 测试。**仍未接 DSH 宿主、未装机。**
+
+### 新增
+
+- `dsh/`：`store.js`（开库 + 迁移执行 + 台账）、`server.js`（`/api/health`、`/api/bootstrap`、静态文件、JSON 404、路径穿越拦截、资料目录校验）、`readmodels.js`（12 页读模型）、`demo.js`（幂等播种）、`workbench.js`（实例门面）、`index.js`（DSH 入口，`API_PREFIX = /api/attr`）。
+- `public/`：开发版骨架（三段式顶栏 + 可拖 AI 面板分隔条 + 五态文案），数据改由 `GET /api/bootstrap` 提供，不再引 `demo-data.js`；AI 面板从「布尔开合 + 写死像素」换成五态 + 比例宽度（25%–45%，拖动/键盘/三档预设/松手记忆）。
+- `lib/layout.js`：面板参数唯一来源（`PANEL` / `AGENT_PANE` / `assertPanelConfig`），`dsh/readmodels.js` 的 bootstrap 下发与客户端注册同源。
+- `lib/client.js`：iframe 挂载（`businessSide:left / businessWidth:0.65 / customFrame:false`）。
+- `test/` 三件套：`store.test.mjs`（5 条，含与 `demo-data.js` 的逐字段 parity）、`server.test.mjs`（6 条，起真实服务）、`ui-parity.test.mjs`（10 条，82 组视图 HTML 逐字符比对）。
+- `schema/0002_rhythm_last.sql`：`rhythm` 补 `last TEXT`（原型五位元组的「上次」位原来被丢进 `next`）。
+- `docs/screenshots/`：无头实测 9 张（1440 宽，12 视图 / 40 页签全点）。
+
+### 修复
+
+- 演示数据 `autonomic` 第一行赘余第 5 位（schema 无 `note` 列），删除后 parity 通过。
+- bootstrap 的 `trials[].saved` 不再强转布尔，保持 SQLite 原值 1/0。
+- `dsh/readmodels.js` 的 `layout.panel` 硬编码 `customFrame:true` 与 `lib/layout.js` 的 `false` 矛盾，改为从 layout.js 导入。
+- AI 面板键盘 ←/→ 步长把比例（0.02）当像素除了 `gridWidth`，每按一次只动 0.0017% 等于没反应；改为直接用比例步长。**食管癌 `public/app.js:1119` 有同一处 bug，待回流修复。**
+
+### 实测数字（2026-10-21，dev-server + 真实 Chrome）
+
+- `npm run check`：21 条单测全过；冻结合同 / 文案红线 / 版本一致（8 处）/ 包结构全通过。
+- 无头实测：12 视图 × 40 页签全部独立渲染、`body.scrollWidth ≤ innerWidth`（1440 宽，字号三档均不溢出）、控制台 0 error、0 个 4xx。
+- 一图秀：2 条线 × 8 段单调三次贝塞尔、18 个数据点、事件竖虚线 2 条、分类序列只点不连线（3 个分类点）。
+- AI 面板：idle → connecting（600ms，按钮禁用）→ open → closed → reopen 草稿保留；三档 25/35/45%；键盘 ← 35→37、Home→25；字号 15 / 17.25 / 19.8px。
+- 档案切换：A（遗传型 A97S）↔ B（野生型，家族导航不显示计数角标）。
+
+### 明确未做（阶段 2 剩余）
+
+MinerU 解析链路、四点位血压录入、导出、AI 草稿接原生输入框、DSH 装机、市场发布。
+
+---
+
 ## 未发布 — 品牌定名
 
 ### 变更

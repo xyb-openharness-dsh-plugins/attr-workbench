@@ -6,15 +6,27 @@
 
 | 文件 | sha256 | 内容边界 |
 | --- | --- | --- |
-| `schema/0001_initial.sql` | `ed53b00aaa793601a8bd7e0f773884ff692446e98d141bc2e9b563062a1875b7` | 28 张表、全部 CHECK、全部索引。**只读** |
+| `0001_initial.sql` | ed53b00aaa793601a8bd7e0f773884ff692446e98d141bc2e9b563062a1875b7 | 28 张表、全部 CHECK、全部索引。**只读** |
+| `0002_rhythm_last.sql` | 3ba4ca68a32513d367ff81ab84854017ecb2992173ab0438b3b531522296ed6d | 给 `rhythm` 补 `last TEXT` 一列，见下节。**只读** |
 
-本仓库当前只有 `0001_initial.sql` 一个迁移。`0002_*` 及以后在阶段 2 增加。
+表格由 `scripts/check-schema.mjs` 逐文件比对（正则只认纯文件名，别写成 `schema/0001_*.sql`）。
+已执行迁移：以上两个。`0003_*` 及以后继续按"只增不改"追加。
+
+## 0002_rhythm_last.sql 是什么、为什么加
+
+`rhythm` 表补一个 `last TEXT` 列。原因：0001 的 rhythm 只有 `(item, freq, guideline, next)`，
+而原型的 `rhythmRows` 是五位元组 `[项目, 频率, 依据, 上次, 下次]`——生成器当时把 `r[4] ?? r[3]`
+写进 `next`，「上次」这一位被丢掉，读模型只能还原四位，与 `prototypes/v0.2/demo-data.js` 的
+parity 断言（`test/store.test.mjs` ③）当场红。加列不改 0001，是这条契约的标准动作。
 
 ## 冻结的含义（三条，缺一不可）
 
 1. **不许改已发布迁移的任何字节**。改一个空格，sha256 就变；已装机用户的库不会重放，本地与远端就分叉了。
 2. **结构变更只能新增 `000N_*.sql`**。加列用 `ALTER TABLE ... ADD COLUMN`；删列/改类型走"新表 + 搬数据 + 改视图"，不许 `DROP` 用户数据。
 3. **校验脚本必须跑**。阶段 2 引入 `scripts/check-schema.mjs`，比对上面这张表的 sha256；不一致就 fail，不许"先提交后补"。
+
+> 注：`0001_initial.sql` 的 sha256 由 `scripts/check-attr.mjs` 第 2 条与
+> `scripts/check-schema.mjs` 双处核对；新增 000N 不影响 0001 的哈希，两份校验都仍应通过。
 
 ## 可以做的事（不破坏冻结）
 
@@ -46,8 +58,8 @@
 
 | 产物 | 大小 | 说明 |
 | --- | --- | --- |
-| `prototypes/v0.2/demo-data.js` | 23,588 B | 原型直接加载 |
+| `prototypes/v0.2/demo-data.js` | 29,670 B | 原型直接加载 |
 | `demo/demo-data.sqlite` | 180,224 B | schema 校验用，逐表与 js 对齐 |
-| 生成脚本 | `demo/build-demo-data.mjs` | 唯一来源，sha256 前缀 `1f71ab0cd67d2c79` |
+| 生成脚本 | `demo/build-demo-data.mjs` | 唯一来源，sha256 前缀 `c3e082324511a85f` |
 
 改演示数据只能改脚本再重新生成；不许手改 `demo-data.js`。

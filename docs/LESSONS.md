@@ -46,6 +46,12 @@
 
 L23（本脚手架 test/cli.test.mjs）：macOS arm64 / npm 10.9.2 的实际测试发现 `npm pack --ignore-scripts` 仍执行 prepare。本地 npm 的 libnpmpack 对 prepack/postpack 有 ignoreScripts 守卫，但所携带 pacote 的 DirFetcher.prepare 路径未检查该标志。CLI 因此在 pack 前检查并拒绝 prepack/prepare/postpack，不以一个标志保证“无脚本”。对用户既有项目不自动删除/改写脚本，要求审阅其打包流程。已有实际执行的回归样例验证不会创建生命周期标记文件。此结论针对所检验 npm 版本，不泛化为所有版本行为。
 
+## ATTR 移植补充（2026-10-21）
+
+L24（attr-workbench test/ui-parity.test.mjs）：跨病种照抄 parity 测试时，页签遍历方式必须跟着数据身份走。ATTR 原型 `state.sub` 存页签标签字符串，食管癌存索引；照抄 `forEach((_, i) => i)` 后所有页签都落兜底分支，两边输出一致——测试全绿但比的是错内容，属于"安静地少测"。修复：按标签遍历 + 加"各页签内容互不相同"断言，页签没分流直接红。同类移植先读原型 `state.sub` 的存取方式再写测试。
+
+L25（attr-workbench public/app.js）：比例与像素不许混算。AI 面板键盘步长把 `AGENT_PANE.step`（比例 0.02）当像素除了 `gridWidth()`，每按一次只动 0.0017%，肉眼不可见；而无头测试只测三档预设不经过键盘，照样全绿。修复：键盘分支直接用比例步长并注释量纲；无头断言 ← 一次必须 35→37。同一处 bug 在食管癌 `public/app.js:1119` 复现，跨病种共用的交互代码改一处要全局 grep。
+
 ## 注册成功但页面失败：定位过程
 
 业务面板显示 `Workbench registration requires a client package entry name.`。包名、loader ID、patch name、peers 和 tgz 入口均通过核对；known provider 已留存，说明注册成功。服务端日志没有该错误，而插件临时 ErrorBoundary 在客户端显示英文异常，因此下一步应检查 React 渲染调用，不是继续改包字段。

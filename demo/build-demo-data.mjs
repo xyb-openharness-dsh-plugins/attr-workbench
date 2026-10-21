@@ -290,7 +290,9 @@ function profileB() {
       ['2026-09-05', '感觉', '袜套样麻木到踝部', '夜间偶有烧灼感', '']
     ],
     autonomic: [
-      ['2026-07-14', '胃肠', '便秘', '三四天一次', ''],
+      /* autonomic_rows 没有 note 列（neuro_rows 才有），元组固定 4 位。
+         曾经第一行尾巴多一个 ''，与其余行位数不一，读模型没法还原——已删。 */
+      ['2026-07-14', '胃肠', '便秘', '三四天一次'],
       ['2026-09-05', '体位', '起身头晕', '与立位血压同日']
     ],
     redflags: [
@@ -501,8 +503,10 @@ async function writeSqlite(data) {
     const insEvent = db.prepare('INSERT INTO events (profile_key,d,label,kind) VALUES (?,?,?,?)')
     p.events.forEach(([d, label]) => insEvent.run(k, d, label, /起病|确诊|级|基因/.test(label) ? 'diagnosis' : 'event'))
 
-    const insRhythm = db.prepare('INSERT INTO rhythm (profile_key,item,freq,guideline,next,ord) VALUES (?,?,?,?,?,?)')
-    p.rhythmRows.forEach((r, i) => insRhythm.run(k, r[0], r[1], r[2], r[4] ?? r[3], i))
+    /* rhythmRows = [项目, 频率, 依据, 上次, 下次]；last 列由 0002_rhythm_last.sql 追加。
+       曾经这里写 r[4] ?? r[3]（把「下次」当唯一值），「上次」被丢掉，读模型 parity 红。 */
+    const insRhythm = db.prepare('INSERT INTO rhythm (profile_key,item,freq,guideline,last,next,ord) VALUES (?,?,?,?,?,?,?)')
+    p.rhythmRows.forEach((r, i) => insRhythm.run(k, r[0], r[1], r[2], r[3] ?? null, r[4] ?? null, i))
 
     const insMonitor = db.prepare('INSERT INTO monitor_rows (profile_key,item,freq,last,next,note,ord) VALUES (?,?,?,?,?,?,?)')
     p.monitor.forEach((r, i) => insMonitor.run(k, r[0], r[1], r[2], r[3], null, i))
@@ -570,9 +574,12 @@ async function writeSqlite(data) {
   const insTrial = db.prepare('INSERT INTO trials (record_id,source,title,status,note,saved,ord) VALUES (?,?,?,?,?,?,?)')
   data.trials.forEach((t, i) => insTrial.run(t.record_id, t.source, t.title, t.status, t.note, t.saved, i))
 
+  /* demo_meta：键名与 demo-data.js 的 meta 一致（读模型按同样的键还原成 D.meta） */
   db.prepare('INSERT INTO demo_meta (k,v) VALUES (?,?)').run('version', data.meta.version)
   db.prepare('INSERT INTO demo_meta (k,v) VALUES (?,?)').run('build', data.meta.build)
-  db.prepare('INSERT INTO demo_meta (k,v) VALUES (?,?)').run('window', `${data.meta.windowStart}..${data.meta.windowEnd}`)
+  db.prepare('INSERT INTO demo_meta (k,v) VALUES (?,?)').run('windowStart', data.meta.windowStart)
+  db.prepare('INSERT INTO demo_meta (k,v) VALUES (?,?)').run('windowEnd', data.meta.windowEnd)
+  db.prepare('INSERT INTO demo_meta (k,v) VALUES (?,?)').run('note', data.meta.note)
   db.exec('COMMIT')
   const tables = db.prepare("SELECT count(*) n FROM sqlite_master WHERE type='table'").get().n
   db.close()
