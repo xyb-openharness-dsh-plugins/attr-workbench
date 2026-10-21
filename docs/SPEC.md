@@ -1,4 +1,4 @@
-# SPEC · 淀粉宝宝 ATTR-Pal 转甲状腺素蛋白淀粉样变性（ATTR）工作台 v0.1
+# SPEC · 小甲宝 ATTR-Pal 转甲状腺素蛋白淀粉样变性（ATTR）工作台 v0.1
 
 日期：2026-10-21。状态：**阶段 1 交付物，等待 G1/G2/G3 三道闸口签认**。样板基准：`esophageal-workbench v0.1.0`（家族骨架）+ `fshd-workbench`（非肿瘤慢病的"无治愈"叙事形态）。
 

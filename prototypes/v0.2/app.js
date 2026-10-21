@@ -1,5 +1,5 @@
 'use strict';
-/* 淀粉宝宝 ATTR-Pal v0.1.0 — 交互原型。
+/* 小甲宝 ATTR-Pal v0.1.0 — 交互原型。
    患者资料全部为模拟；临床试验条目为真实登记摘录（状态未核实）。
    不读写真实文件、不调用模型或宿主 API。
 
@@ -795,7 +795,7 @@ function settingsDialog(tab = '工作区') {
   const tabs = ['工作区', '显示与字号', '隐私', '关于'];
   const body = `<div class="cfg-tabs" role="tablist">${tabs.map(t => `<button role="tab" data-cfg="${t}" aria-selected="${t === tab}">${t}</button>`).join('')}</div>
   <div style="margin-top:14px">${cfgBody(tab)}</div>`;
-  openDialog('设置', '淀粉宝宝 ATTR-Pal', body, `<button data-action="close">完成</button>`);
+  openDialog('设置', '小甲宝 ATTR-Pal', body, `<button data-action="close">完成</button>`);
 }
 function cfgBody(tab) {
   if (tab === '显示与字号') {
@@ -811,7 +811,7 @@ function cfgBody(tab) {
   }
   if (tab === '关于') {
     return `<div class="about"><div class="about-meta"><div class="about-ver"><b>${APP_INFO.displayVersion}</b>${pill(APP_INFO.channelLabel, 'violet')}</div>
-      <dl><div><dt>构建</dt><dd>${APP_INFO.build}</dd></div><div><dt>演示档案</dt><dd>2 套 × 6 个月（模拟）</dd></div>
+      <dl><div><dt>全称</dt><dd>转甲状腺素蛋白淀粉样变性（ATTR）· 患者记录助手</dd></div><div><dt>构建</dt><dd>${APP_INFO.build}</dd></div><div><dt>演示档案</dt><dd>2 套 × 6 个月（模拟）</dd></div>
       <div><dt>临床库</dt><dd>434 条登记摘录（CT.gov 418 + CDE 16），2026-10-21</dd></div>
       <div><dt>未做的</dt><dd>未接入 DSH、未装机、未查 ChiCTR/ICTRP、未做患者访谈</dd></div>
       <div><dt>立场</dt><dd>只提供信息，不做诊断与处置建议</dd></div></dl></div></div>`;

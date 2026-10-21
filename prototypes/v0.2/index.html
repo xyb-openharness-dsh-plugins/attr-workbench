@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>淀粉宝宝 ATTR-Pal · ATTR 工作台原型 v0.1.0</title>
+<title>小甲宝 ATTR-Pal · ATTR 工作台原型 v0.1.0</title>
 <meta name="robots" content="noindex">
 <!-- 内联 favicon：file:// 或单目录静态托管时不给 favicon.ico 会在控制台留一条 404 -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232e6e7e'/%3E%3Ctext x='16' y='23' font-size='18' font-family='PingFang SC,Helvetica,sans-serif' font-weight='700' fill='%23fff' text-anchor='middle'%3E%E6%B7%80%3C/text%3E%3C/svg%3E">
@@ -13,8 +13,8 @@
 <a class="skip" href="#main">跳到主要内容</a>
 <div class="prototype-bar"><span><b>交互原型 v0.1.0</b> · 患者资料全部为模拟；临床试验条目为真实登记摘录（状态未核实）</span><span>仅本页演示 · 刷新重置 · 未接入 DSH / 原生会话</span></div>
 <div class="workspace">
-  <aside class="sidebar" aria-label="淀粉宝宝业务导航">
-    <div class="brand"><img src="brand-icon.png" alt="淀粉宝宝 形象"><div><strong>淀粉宝宝</strong><span>ATTR-Pal · 型别与两条线</span></div></div>
+  <aside class="sidebar" aria-label="小甲宝业务导航">
+    <div class="brand"><img src="brand-icon.png" alt="小甲宝 形象"><div><strong>小甲宝</strong><span>ATTR-Pal · 型别与两条线</span></div></div>
     <button class="profile profile-btn" id="profile-btn" data-action="profiles" aria-label="切换演示档案">
       <div class="avatar" id="profile-avatar" aria-hidden="true">陈</div>
       <div><b id="profile-name">陈先生的资料</b><span id="profile-meta">61 岁 · 遗传型 ATTRv</span></div>
@@ -25,13 +25,13 @@
   </aside>
   <div class="work-area">
     <header class="topbar">
-      <div class="breadcrumb">淀粉宝宝工作台 <span>/</span> <b id="breadcrumb">看板</b></div>
+      <div class="breadcrumb">小甲宝工作台 <span>/</span> <b id="breadcrumb">看板</b></div>
       <div class="top-actions">
         <button class="status" id="ready-store" data-action="open-store" aria-label="资料目录：已激活"><i></i><span>资料目录</span><b>已激活</b></button>
         <button class="status" id="agent-toggle" data-action="agent" aria-expanded="false" aria-label="AI 对话：点击打开右侧会话面板"><i class="grey"></i><span>AI 对话</span><b id="agent-state">未进入激活</b></button>
         <button data-action="settings" aria-label="打开设置：资料目录、字号、隐私、版本">设置</button>
         <button id="font-toggle" aria-pressed="false" title="切换大字">大字 Aa</button>
-        <button class="ver-chip" id="ver-chip" data-action="about" aria-label="关于淀粉宝宝：查看版本号与构建信息">v0.1.0</button>
+        <button class="ver-chip" id="ver-chip" data-action="about" aria-label="关于小甲宝：查看版本号与构建信息">v0.1.0</button>
       </div>
     </header>
     <div class="work-grid" id="work-grid">
@@ -54,11 +54,11 @@
         </div>
       </aside>
     </div>
-    <footer class="footer">淀粉宝宝 · 与 ATTR 患者、家系成员和照护者一起整理、理解、准备沟通 <span class="ver-line"><b id="app-version">v0.1.0</b><em id="app-build">2026-10-21</em></span></footer>
+    <footer class="footer">小甲宝 · ATTR（转甲状腺素蛋白淀粉样变性）患者记录助手 · 与患者、家系成员和照护者一起整理、理解、准备沟通 <span class="ver-line"><b id="app-version">v0.1.0</b><em id="app-build">2026-10-21</em></span></footer>
   </div>
 </div>
 <dialog id="dialog" aria-labelledby="dialog-title">
-  <div class="dialog-head"><div><span class="eyebrow" id="dialog-eyebrow">淀粉宝宝</span><h2 id="dialog-title"></h2></div><button class="icon-button" data-action="close" aria-label="关闭弹窗">×</button></div>
+  <div class="dialog-head"><div><span class="eyebrow" id="dialog-eyebrow">小甲宝</span><h2 id="dialog-title"></h2></div><button class="icon-button" data-action="close" aria-label="关闭弹窗">×</button></div>
   <div id="dialog-body" class="dialog-body"></div>
   <div id="dialog-foot" class="dialog-foot"></div>
 </dialog>
