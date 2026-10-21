@@ -1,0 +1,20 @@
+node_modules/
+*.tgz
+.DS_Store
+.env
+.env.*
+!.env.example
+_private/
+.secrets/
+.workbuddy/
+dist/
+input/
+output/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+
+# 临床登记摘录是交付物（research/attr/*.sqlite），入库；
+# 演示库 demo/demo-data.sqlite 由 demo/build-demo-data.mjs 重建，不入库。
+!research/attr/*.sqlite

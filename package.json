@@ -1,0 +1,51 @@
+{
+  "name": "@xyb-community/attr-workbench",
+  "version": "0.1.0",
+  "description": "本机优先的 ATTR 型别确认、心脏与神经受累记录、治疗耐受与家族筛查准备工作台",
+  "private": true,
+  "type": "module",
+  "main": "./dsh/index.js",
+  "exports": {
+    ".": "./dsh/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": [
+    "dsh",
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md",
+    "NOTICE.md"
+  ],
+  "scripts": {
+    "check": "node scripts/check-attr.mjs . && node --check dsh/index.js && node --check lib/client.js && node scripts/check-workbench-package.mjs .",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "dsh-desktop-workbenches"
+      ]
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xyb-openharness-dsh-plugins/attr-workbench"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.1 <5",
+    "@deepseek-ai/dsh-client-connection": ">=0.1.0-rc.0 <0.3.0-0",
+    "@deepseek-ai/dsh-host-webserver": ">=0.1.0-rc.0 <0.3.0-0",
+    "@deepseek-ai/schemastery": ">=3.18.1 <4"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED"
+}

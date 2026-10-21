@@ -1,0 +1,3 @@
+- insert:
+    - id: attr-main
+      name: "@xyb-community/attr-workbench"

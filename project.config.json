@@ -1,0 +1,18 @@
+{
+  "packageName": "@xyb-community/attr-workbench",
+  "title": "小淀宝 AmyPal 转甲状腺素蛋白淀粉样变性工作台（品牌占位）",
+  "repository": "https://github.com/xyb-openharness-dsh-plugins/attr-workbench",
+  "description": "本机优先的 ATTR 型别确认、心脏与神经受累记录、治疗耐受与家族筛查准备工作台",
+  "slug": "attr",
+  "targetUsers": "转甲状腺素蛋白淀粉样变性（ATTR-CM / ATTRv-PN）患者、家系成员与照护者",
+  "scenario": "从心衰、腕管综合征、周围神经病等线索走到确诊（核素扫描 + 轻链排除 + 基因检测）；区分野生型与遗传型；记录心脏与神经两条受累线；长期使用稳定剂或基因沉默药物；家系级联筛查与复诊准备",
+  "completion": "得到来源可追溯、可核对的个人病程档案：型别与基因记录、心脏与神经受累序列、用药与耐受记录、家系筛查名单与复诊准备材料；所有候选信息经用户核对入档，不提供诊断与治疗建议",
+  "coreFlow": [
+    "选择本机资料目录并导入检验、心超、核素扫描、基因报告",
+    "核对候选信息，建立型别（野生型/遗传型）与表型档案",
+    "记录 NT-proBNP、eGFR 等指标与心脏、神经症状序列",
+    "登记用药方案、剂量调整与耐受情况",
+    "生成家系筛查与复诊准备材料"
+  ],
+  "layoutMode": "business-first"
+}
