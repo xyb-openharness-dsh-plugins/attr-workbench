@@ -104,6 +104,31 @@ function apiBase() {
   const path = (typeof location !== 'undefined' && location.pathname) || '';
   return path.indexOf('/api/attr/ui') === 0 ? '/api/attr' : '';
 }
+/**
+ * POST JSON 到工作台接口。失败时把服务端给的字段名带出来（校验失败是 400 + field），
+ * 界面据此定位输入框，而不是笼统说"保存失败"。
+ */
+function apiPost(path, body) {
+  const endpoint = `${apiBase()}${path}`;
+  let p;
+  try {
+    p = fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (e) { p = Promise.reject(e); }
+  return Promise.resolve(p).then(async (r) => {
+    const j = await r.json().catch(() => null);
+    if (!r.ok) {
+      const err = new Error((j && j.message) || `HTTP ${r.status}`);
+      err.field = j && j.field;
+      err.code = j && j.error;
+      throw err;
+    }
+    return j || {};
+  });
+}
 function loadBootstrap() {
   const fallback = (typeof window !== 'undefined' && window.DEMO_DATA) || null;
   const endpoint = `${apiBase()}/api/bootstrap`;
@@ -156,7 +181,10 @@ function buildData(data) {
 
 /* 面板宽度区间来自 bootstrap 的 layout.agentPane（唯一来源 lib/layout.js）；
    接口没给时用同一组数字兜底，保证离线/回退路径也能拖动。 */
-let AGENT_PANE = { min: 0.25, max: 0.45, def: 0.35, step: 24, presets: { narrow: 0.25, std: 0.35, wide: 0.45 } };
+/* step 与 lib/layout.js 同义：比例（0.02＝每次 2%），不是像素。
+   这里原来写 24（像素语义），键盘分支改用比例后会变成 2400% 直接顶到上限——
+   离线兜底路径（没有 bootstrap 下发）与服务端两条路必须同量纲。 */
+let AGENT_PANE = { min: 0.25, max: 0.45, def: 0.35, step: 0.02, presets: { narrow: 0.25, std: 0.35, wide: 0.45 } };
 const AGENT_STORE_KEY = 'xyb-attr-agent-ratio';
 const state = {
   view: 'dashboard',
@@ -591,6 +619,39 @@ function viewTreatment(p, sub) {
       <button class="soft" data-view="life" style="margin-top:10px">去生活与照护</button>`)}`;
 }
 
+/* ---------------- 开发版新增：血压录入（原型没有，标记 data-dev-only 供 parity 白名单放行） ----------------
+   原型的血压表是只读的（演示数据里每格都有值，所以看不出问题）。一旦让用户录入，
+   就会出现"没填脉搏"这种情况：库里是 NULL，界面必须显示「—」而不是 0 或 "null"——
+   **空 ≠ 阴性**：空是"没记"，不是"脉搏为 0"，也不等于"没有症状"。 */
+function numOrDash(v) {
+  return v === null || v === undefined || v === '' ? '<span class="muted">—</span>' : String(v);
+}
+
+/** 录入表单。体位可空：空 = 这条没记体位，不参与卧-立对照（对照在读取时算，不存差值）。 */
+function bpEntryForm() {
+  if (state.profile !== 'A' && state.profile !== 'B') return '';
+  return `<form class="dev-entry" data-dev-only id="bp-form" autocomplete="off">
+      <h3>记一条血压</h3>
+      <div class="dev-entry-row">
+        <label>日期<input type="date" name="d" required></label>
+        <label>体位<select name="position">
+          <option value="">未记体位</option><option value="卧">卧</option><option value="坐">坐</option><option value="立">立</option>
+        </select></label>
+        <label>收缩压<input type="number" name="sys" min="40" max="300" required><span class="unit">mmHg</span></label>
+        <label>舒张压<input type="number" name="dia" min="20" max="200" required><span class="unit">mmHg</span></label>
+        <label>脉搏<input type="number" name="pulse" min="20" max="250" placeholder="可不填"><span class="unit">次/分</span></label>
+      </div>
+      <div class="dev-entry-row">
+        <label class="grow">当时症状<input type="text" name="symptom" maxlength="100" placeholder="如：站起来眼前发黑；可不填"></label>
+        <label class="grow">当时用药<input type="text" name="drugNote" maxlength="200" placeholder="如：呋塞米 20mg qd；可不填"></label>
+      </div>
+      <div class="dev-entry-foot">
+        <button class="primary" type="submit">记一条</button>
+        <span class="small-note">留空的格子存为「没记」，不会写成 0，也不会当成"没有症状"。</span>
+      </div>
+    </form>`;
+}
+
 function viewCardiac(p, sub) {
   if (sub === '心衰症状与体征') {
     return `${pageHead('心衰症状与体征', SUBTITLES.cardiac, '')}
@@ -609,8 +670,9 @@ function viewCardiac(p, sub) {
       ${emptyState('是否需要起搏器 / ICD', '这是医生根据多项检查做的判断，工作台不提供倾向。可以把它写进「与医生讨论的问题」。')}`;
   }
   return `${pageHead('血压与用药耐受', '体位是关键字段：卧、坐、立分别记；没有体位就不参与对照。', '')}
-    ${card('血压记录', table(['日期', '体位', '血压', '脉搏', '当时症状', '当时用药'], p.bp.map(r => [esc(r[0]), esc(r[1]), `<b>${r[2]}/${r[3]}</b> mmHg`, String(r[4]), esc(r[5]), esc(r[6])])))}
-    <p class="small-note">低血压（尤其体位性）导致部分患者不能耐受降压药与 β 阻滞剂。是否调整用药由医生决定；本页只提供记录。</p>`;
+    ${card('血压记录', table(['日期', '体位', '血压', '脉搏', '当时症状', '当时用药'], p.bp.map(r => [esc(r[0]), esc(r[1]) || '<span class="muted">—</span>', `<b>${r[2]}/${r[3]}</b> mmHg`, numOrDash(r[4]), esc(r[5]) || '<span class="muted">—</span>', esc(r[6]) || '<span class="muted">—</span>'])))}
+    <p class="small-note">低血压（尤其体位性）导致部分患者不能耐受降压药与 β 阻滞剂。是否调整用药由医生决定；本页只提供记录。</p>
+    ${bpEntryForm()}`;
 }
 
 function viewNerve(p, sub) {
@@ -1111,6 +1173,46 @@ document.addEventListener('click', (e) => {
 
 $('#dialog').addEventListener('click', (e) => { if (e.target.id === 'dialog') closeDialog(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDialog(); });
+
+/* 血压录入：表单每次 render 都会重建，所以监听挂在 document 上做委托，
+   不给 #bp-form 直接绑（绑了会随重渲染一起丢）。 */
+document.addEventListener('submit', (e) => {
+  const form = e.target.closest && e.target.closest('#bp-form');
+  if (!form) return;
+  e.preventDefault();
+  const f = new FormData(form);
+  const asText = (k) => { const v = f.get(k); return v === null ? null : String(v).trim(); };
+  const payload = {
+    profileKey: state.profile,
+    d: asText('d'),
+    position: asText('position'),
+    sys: asText('sys'),
+    dia: asText('dia'),
+    pulse: asText('pulse'),
+    symptom: asText('symptom'),
+    drugNote: asText('drugNote'),
+  };
+  const btn = form.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+  apiPost('/api/bp', payload)
+    .then((j) => {
+      /* 用服务端回读的整段替换本地数组：写入后立刻回读，前端不自己拼行
+         （自己拼就会和读模型的列顺序错位） */
+      const p = PROFILES[state.profile];
+      if (p && Array.isArray(j.bp)) p.bp = j.bp;
+      form.reset();
+      render();
+      toast(`已记一条：${j.row ? `${j.row.d} ${j.row.position || '未记体位'} ${j.row.sys}/${j.row.dia}` : '血压'}`);
+    })
+    .catch((err) => {
+      toast(err.field ? `${err.field}：${err.message}` : (`保存失败：${err.message}`));
+      const input = err.field && form.querySelector(`[name="${err.field}"]`);
+      if (input && typeof input.focus === 'function') input.focus();
+    })
+    .finally(() => {
+      if (btn) { btn.disabled = false; btn.textContent = '记一条'; }
+    });
+});
 
 function setFont(tz) {
   document.documentElement.style.setProperty('--tz', tz);

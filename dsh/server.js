@@ -87,6 +87,58 @@ function sendFile(res, file) {
   }
 }
 
+/* ---------------- 请求体 ---------------- */
+
+/**
+ * 读 JSON 请求体。三条边界：
+ * 1. 有体积上限（默认 1MB），超了直接 413——不做"先读完再判断"，那是被大请求打死的经典写法；
+ * 2. 不是 JSON 就抛错，由路由转 400，不静默当空对象（空对象会被当成"全都合法"写进事实层）；
+ * 3. 只在 POST/PUT 上用；GET 不读体。
+ */
+export function readJsonBody(req, { limitBytes = 1024 * 1024 } = {}) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > limitBytes) {
+        reject(Object.assign(new Error(`请求体超过 ${limitBytes} 字节`), { statusCode: 413 }));
+        req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on('end', () => {
+      if (!chunks.length) return resolve({});
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+      } catch {
+        reject(Object.assign(new Error('请求体不是合法 JSON'), { statusCode: 400 }));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+/** 读原始字节（上传原件用）。上限默认 32MB：MinerU 单文件 200MB，但实际化验单远小于此。 */
+export function readRawBody(req, { limitBytes = 32 * 1024 * 1024 } = {}) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > limitBytes) {
+        reject(Object.assign(new Error(`文件超过 ${limitBytes} 字节`), { statusCode: 413 }));
+        req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 /* ---------------- 路由 ---------------- */
 
 /**
@@ -107,7 +159,7 @@ export function servePublic(req, res, urlPath) {
 }
 
 export function createHandler({ workbench }) {
-  return function handle(req, res) {
+  return async function handle(req, res) {
     const url = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
     const path = url.pathname;
 
@@ -125,6 +177,27 @@ export function createHandler({ workbench }) {
         return json(500, { error: 'bootstrap_failed', message: error.message });
       }
     }
+
+    /* 写入：血压（体位性低血压记录）。校验失败 = 400 + 字段名，界面据此定位输入框；
+       不把非法值悄悄改掉——190/120 被改成 0，界面看着正常，回放时是错的。 */
+    if (req.method === 'POST' && path === '/api/bp') {
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch (error) {
+        return json(error.statusCode || 400, { error: 'bad_body', message: error.message });
+      }
+      try {
+        const row = workbench.addBp(body);
+        return json(200, { ok: true, row, bp: workbench.bpRows(row.profileKey) });
+      } catch (error) {
+        if (error && error.name === 'ValidationError') {
+          return json(400, { error: 'invalid', field: error.field, message: error.message });
+        }
+        return json(500, { error: 'write_failed', message: error.message });
+      }
+    }
+
     if (path.startsWith('/api/')) return json(404, { error: 'not_found', path });
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {

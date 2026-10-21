@@ -108,6 +108,16 @@ const WHITELIST = [
     name: '版本号文本',
     reason: '开发版版本号由 GET /api/bootstrap 下发（并写回 #ver-chip / #app-version），原型是写死的 v0.1.0；归一后再比。',
     apply: (s) => s.replace(/v\d+\.\d+\.\d+(?:[.-][0-9A-Za-z.]+)?/g, 'vX.Y.Z')
+  },
+  {
+    /* 开发版会在原型页面上追加交互（录入表单、写入按钮…），原型是冻结快照不会跟着长。
+       这些节点一律带 data-dev-only 标记，比对时整块摘掉——放行的是"开发版多出来的"，
+       不是"开发版改坏了的"：原型原有的任何字符变化仍会在这里之外被抓到。 */
+    name: '开发版新增节点（data-dev-only）',
+    reason: '原型已冻结；开发版新增的录入表单等交互带 data-dev-only 标记，比对时摘除。',
+    /* 连前置空白一起吃：模板里表单独占一行，只摘 <form>…</form> 会留下一个换行 + 缩进，
+       比对就挂在"多了一个空白"上，而不是真差异。 */
+    apply: (s) => s.replace(/[ \t\r\n]*<form[^>]*\bdata-dev-only\b[^>]*>[\s\S]*?<\/form>/g, '')
   }
 ];
 const whitelistHits = new Map();

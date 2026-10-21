@@ -71,3 +71,20 @@ body.agent-dragging *{cursor:col-resize !important}
   .agent-splitter{display:none}
   .agent-dock{min-width:0}
 }
+
+/* ---------- 开发版新增：录入表单（原型没有，样式单独放这里，不动 style.css） ----------
+   data-dev-only 是给 test/ui-parity.test.mjs 白名单用的标记：带上它的节点在比对时被摘掉，
+   这样"开发版比原型多出来的交互"不会让 parity 断言误判成渲染漂移。 */
+.dev-entry{margin-top:14px;padding:14px 16px;border:1px dashed #c9d6e4;border-radius:12px;background:#fff}
+.dev-entry h3{margin:0 0 10px;font-size:13px;color:#213139}
+.dev-entry-row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end}
+.dev-entry-row+.dev-entry-row{margin-top:10px}
+.dev-entry label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#48565A}
+.dev-entry label.grow{flex:1 1 220px;min-width:180px}
+.dev-entry input,.dev-entry select{
+  height:32px;padding:0 8px;border:1px solid #d6e0ea;border-radius:8px;background:#fff;
+  font:inherit;font-size:12.5px;color:#213139;min-width:96px}
+.dev-entry label.grow input{width:100%;min-width:0}
+.dev-entry input:focus-visible,.dev-entry select:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
+.dev-entry .unit{font-size:11px;color:#8a99a6}
+.dev-entry-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}

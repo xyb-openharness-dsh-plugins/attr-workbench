@@ -14,7 +14,8 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { close, migrate, openDatabase } from './store.js';
 import { hasDemoData, seedDemo } from './demo.js';
-import { bootstrap, getProfile, listSubjects } from './readmodels.js';
+import { bootstrap, bpRows, getProfile, listSubjects } from './readmodels.js';
+import { addBpRow } from './writes.js';
 import { workspaceProblems } from './server.js';
 import { version, build, displayVersion } from '../lib/version.js';
 
@@ -63,6 +64,27 @@ export class Workbench {
   bootstrap() { return bootstrap(this.#db, { version, build }); }
   listSubjects() { return listSubjects(this.#db); }
   getProfile(key) { return getProfile(this.#db, key); }
+
+  /**
+   * 写一条血压记录（体位性低血压）。单条 INSERT 也走事务：日后同一支写入要连带写
+   * 来源文档或候选状态时，事务边界已经在这儿了，不必回头改调用方。
+   * 校验失败抛 ValidationError（writes.js），由 server.js 转 400 + 字段名。
+   */
+  addBp(input) {
+    const db = this.#db;
+    db.exec('BEGIN');
+    try {
+      const row = addBpRow(db, input);
+      db.exec('COMMIT');
+      return row;
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch { /* 回滚失败也要把原始错误抛出去 */ }
+      throw error;
+    }
+  }
+
+  /** 某个档案的血压记录（读模型形状：7 位元组数组，与原型一致）。 */
+  bpRows(profileKey) { return bpRows(this.#db, profileKey); }
 
   close() {
     if (this.#db) { close(this.#db); this.#db = null; }

@@ -134,6 +134,16 @@ export function getProfile(db, key) {
   return readProfile(db, key);
 }
 
+/**
+ * 某个档案的血压记录（7 位元组，与原型 `p.bp` 同形）。
+ * 单独导出是为了让**写入后立刻回读**走同一份形状：接口返回什么，界面就按哪个下标渲染，
+ * 不用在前端再映射一遍列名（多一处映射就多一处错位）。
+ */
+export function bpRows(db, key) {
+  return rows(db, 'SELECT d, position, sys, dia, pulse, symptom, drug_note FROM bp_rows WHERE profile_key = ? ORDER BY ord', key)
+    .map((r) => [r.d, r.position, r.sys, r.dia, r.pulse, r.symptom, r.drug_note]);
+}
+
 /** 演示元信息（时间窗等）：前端 `D.meta` 直接用它，形状与 demo-data.js 的 meta 一致。 */
 function readDemoMeta(db) {
   const meta = {};

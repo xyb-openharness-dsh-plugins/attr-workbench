@@ -96,7 +96,43 @@ test('⑤ 路径穿越被拦：../../package.json 拿不到仓库文件', async 
   });
 });
 
-test('⑥ 资料目录校验：主目录 / 桌面根 / /tmp 一律拒绝，正常目录放行', () => {
+test('⑥ POST /api/bp：写入成功返回整段血压记录；校验失败 400 + 字段名', async () => {
+  await withServer(async ({ url }) => {
+    const before = await (await fetch(`${url}api/bootstrap`)).json();
+    const n0 = before.profiles.A.bp.length;
+
+    const r = await fetch(`${url}api/bp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ profileKey: 'A', d: '2026-10-22', position: '立', sys: 96, dia: 58, pulse: 74, symptom: '眼前发黑', drugNote: '呋塞米 20mg' }),
+    });
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.equal(j.ok, true);
+    assert.equal(j.bp.length, n0 + 1, '应回传整段（含新写的那条）');
+    assert.deepEqual(j.bp[j.bp.length - 1], ['2026-10-22', '立', 96, 58, 74, '眼前发黑', '呋塞米 20mg']);
+
+    /* 校验失败：400 + 字段名（界面据此定位输入框），且不写入 */
+    const bad = await fetch(`${url}api/bp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ profileKey: 'A', d: '2026-10-22', sys: 60, dia: 90 }),
+    });
+    assert.equal(bad.status, 400);
+    const bj = await bad.json();
+    assert.equal(bj.error, 'invalid');
+    assert.equal(bj.field, 'sys', '应给出出错字段名');
+    const after = await (await fetch(`${url}api/bootstrap`)).json();
+    assert.equal(after.profiles.A.bp.length, n0 + 1, '失败的那次不应写入');
+
+    /* 非 JSON 请求体：400，不当空对象处理 */
+    const junk = await fetch(`${url}api/bp`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: 'not-json' });
+    assert.equal(junk.status, 400);
+    assert.equal((await junk.json()).error, 'bad_body');
+  });
+});
+
+test('⑦ 资料目录校验：主目录 / 桌面根 / /tmp 一律拒绝，正常目录放行', () => {
   const home = homedir();
   assert.ok(validateWorkspacePath(home).length > 0, '主目录应被拒绝');
   assert.ok(validateWorkspacePath(join(home, 'Desktop')).length > 0, '桌面根目录应被拒绝');
