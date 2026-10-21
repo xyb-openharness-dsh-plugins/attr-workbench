@@ -132,7 +132,21 @@ test('⑥ POST /api/bp：写入成功返回整段血压记录；校验失败 400
   });
 });
 
-test('⑦ 资料目录校验：主目录 / 桌面根 / /tmp 一律拒绝，正常目录放行', () => {
+test('⑦ GET /api/export/summary：文本可取、家系不泄漏、404 给 JSON', async () => {
+  await withServer(async ({ url }) => {
+    const r = await fetch(`${url}api/export/summary?profile=A`);
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.ok(j.text.includes('陈志远'), '摘要应有档案信息');
+    assert.ok(j.text.includes('不含私密家系信息'), '免责段必须在家系声明');
+    assert.deepEqual(j.excluded, ['family_rows', 'viewpoints']);
+    const nf = await fetch(`${url}api/export/summary?profile=Z`);
+    assert.equal(nf.status, 404);
+    assert.equal((await nf.json()).error, 'profile_not_found');
+  });
+});
+
+test('⑧ 资料目录校验：主目录 / 桌面根 / /tmp 一律拒绝，正常目录放行', () => {
   const home = homedir();
   assert.ok(validateWorkspacePath(home).length > 0, '主目录应被拒绝');
   assert.ok(validateWorkspacePath(join(home, 'Desktop')).length > 0, '桌面根目录应被拒绝');

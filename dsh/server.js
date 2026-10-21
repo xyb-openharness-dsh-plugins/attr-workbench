@@ -198,6 +198,17 @@ export function createHandler({ workbench }) {
       }
     }
 
+    /* 导出：门诊摘要。家系与看法在 export.js 里按构造排除（只读白名单表）。 */
+    if (req.method === 'GET' && path === '/api/export/summary') {
+      const profileKey = url.searchParams.get('profile') || 'A';
+      try {
+        return json(200, workbench.exportSummary(profileKey));
+      } catch (error) {
+        const notFound = /档案不存在/.test(error.message || '');
+        return json(notFound ? 404 : 500, { error: notFound ? 'profile_not_found' : 'export_failed', message: error.message });
+      }
+    }
+
     if (path.startsWith('/api/')) return json(404, { error: 'not_found', path });
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {

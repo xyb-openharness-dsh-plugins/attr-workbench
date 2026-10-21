@@ -16,6 +16,7 @@ import { close, migrate, openDatabase } from './store.js';
 import { hasDemoData, seedDemo } from './demo.js';
 import { bootstrap, bpRows, getProfile, listSubjects } from './readmodels.js';
 import { addBpRow } from './writes.js';
+import { exportSummaryText } from './export.js';
 import { workspaceProblems } from './server.js';
 import { version, build, displayVersion } from '../lib/version.js';
 
@@ -85,6 +86,9 @@ export class Workbench {
 
   /** 某个档案的血压记录（读模型形状：7 位元组数组，与原型一致）。 */
   bpRows(profileKey) { return bpRows(this.#db, profileKey); }
+
+  /** 门诊摘要导出（家系与看法按构造排除，见 dsh/export.js 头注释）。 */
+  exportSummary(profileKey) { return exportSummaryText(this.#db, profileKey); }
 
   close() {
     if (this.#db) { close(this.#db); this.#db = null; }

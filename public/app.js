@@ -129,6 +129,40 @@ function apiPost(path, body) {
     return j || {};
   });
 }
+/* 导出走 GET（只读，没有副作用），与 POST 的 apiPost 分开。 */
+function apiGet(path) {
+  const endpoint = `${apiBase()}${path}`;
+  let p;
+  try { p = fetch(endpoint); } catch (e) { p = Promise.reject(e); }
+  return Promise.resolve(p).then(async (r) => {
+    const j = await r.json().catch(() => null);
+    if (!r.ok) throw Object.assign(new Error((j && j.message) || `HTTP ${r.status}`), { code: j && j.error });
+    return j || {};
+  });
+}
+
+/** 写剪贴板：优先异步 API；不可用（旧内核/权限拒）退回 execCommand，仍失败就抛错。 */
+async function writeClipboard(text) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = typeof document.execCommand === 'function' && document.execCommand('copy');
+  ta.remove();
+  if (!ok) throw new Error('浏览器不允许写入剪贴板');
+}
+
+/** 把长文本放进弹窗（复制失败的兜底：让用户手动全选）。 */
+function textDialog(title, text) {
+  openDialog(title, '小甲宝 ATTR-Pal',
+    `<pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.7;margin:0">${esc(text)}</pre>`,
+    `<button data-action="close">关闭</button>`);
+}
 function loadBootstrap() {
   const fallback = (typeof window !== 'undefined' && window.DEMO_DATA) || null;
   const endpoint = `${apiBase()}/api/bootstrap`;
@@ -1166,7 +1200,21 @@ document.addEventListener('click', (e) => {
   }
   if (a === 'mock-dir') { toast('原型不读写真实目录'); return; }
   if (a === 'font-set') { setFont(Number(el.dataset.tz)); return; }
-  if (a === 'copy-summary' || a === 'copy-family') { toast('原型只演示，不写剪贴板'); return; }
+  if (a === 'copy-summary') {
+    /* 门诊摘要：服务端生成（家系与看法在 export.js 按构造排除），复制到剪贴板。
+       文本与「病情汇总」页同源；拿不到剪贴板权限时弹窗给出全文，手动复制也行。 */
+    const btn = el;
+    btn.disabled = true;
+    apiGet(`/api/export/summary?profile=${encodeURIComponent(state.profile)}`)
+      .then((j) => writeClipboard(j.text)
+        .then(() => toast('摘要已复制到剪贴板（不含家系信息）'))
+        /* 剪贴板写不进去（权限/旧内核）时不吞掉内容：弹窗给全文，用户手动全选 */
+        .catch(() => textDialog('门诊摘要（请手动全选复制）', j.text)))
+      .catch((err) => toast(`复制失败：${(err && err.message) || '未知原因'}`))
+      .finally(() => { btn.disabled = false; });
+    return;
+  }
+  if (a === 'copy-family') { toast('家系导出需在设置里单独勾选后才会可用（最高敏感级，默认不可导）'); return; }
   if (a === 'build-visit') { toast('已在「复诊准备 → 就诊准备」生成草稿（演示）'); return; }
   if (a === 'add-question' || a === 'edit-genotype' || a === 'edit-diagnosis' || a === 'toggle-family' || a === 'save-trial') { toast('开发版开放此操作；原型只演示形态'); return; }
 });
