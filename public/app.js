@@ -915,11 +915,49 @@ function agentDraft() {
   return lines.join('\n');
 }
 
+/* ---------------- 开发版新增：草稿交付（pinky:agent-draft 合同，AGENT-PANE-DESIGN §7） ----------------
+   链路：预览弹窗 → postMessage({type:'pinky:agent-draft', prompt}) → 宿主面板校验
+   source/origin → 填进原生会话草稿框 → **用户自己按回车**。没有任何一步替用户发送。
+   两条边界：
+   1. prompt 截到 8000 字（合同上限），截断时明说；
+   2. 独立启动（npm start）没有父窗口：退化为复制草稿，不假装有 AI。
+   宿主侧监听端（rememberDraft/flushDraft 队列 + ensureSession）属于宿主面板代码，
+   本仓库不可测——列入 M6 装机验证的交互层，这里不假装它已经存在。 */
+const AGENT_PROMPT_MAX = 8000;
+const inHost = () => typeof window !== 'undefined' && window.parent && window.parent !== window;
+
+/** 交付草稿。返回 'posted' | 'no-parent'，调用方据此给不同的提示（不谎报成功）。 */
+function deliverAgentDraft(prompt) {
+  const text = String(prompt);
+  const clipped = text.length > AGENT_PROMPT_MAX
+    ? `${text.slice(0, AGENT_PROMPT_MAX)}\n\n（草稿超过 ${AGENT_PROMPT_MAX} 字，超出部分已截断；完整内容在左侧页面里。）`
+    : text;
+  if (!inHost()) return 'no-parent';
+  try {
+    window.parent.postMessage({ type: 'pinky:agent-draft', prompt: clipped }, window.location.origin);
+    return 'posted';
+  } catch {
+    return 'no-parent';
+  }
+}
+
+/** 预览弹窗：先看全文再交付（合同 §7.1——预览可看，交付由用户点）。 */
+function agentPreviewDialog() {
+  const draft = agentDraft();
+  const hasHost = inHost();
+  openDialog('本页上下文草稿', '与 AI 讨论',
+    `<pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.7;margin:0">${esc(draft)}</pre>
+     <p class="small-note">只抄已入档记录；私密家系与「我的看法」不在其中。填入输入框后<b>由你自己按回车</b>，工作台不会替你发送。</p>`,
+    `${hasHost ? `<button class="primary" data-action="agent-send">填入 AI 输入框</button>` : ''}
+     <button data-action="agent-copy">复制草稿</button>
+     <button data-action="close">关闭</button>`);
+}
+
 function renderAgent() {
   const body = $('#agent-body');
   if (!body) return;
   const draft = agentDraft();
-  body.innerHTML = `<div class="agent-note">原型态：这里只生成<b>上下文草稿</b>，不连接模型、不替你发送。开发版会填入 DSH 原生输入框，由你按回车。</div>
+  body.innerHTML = `<div class="agent-note">这里只生成<b>上下文草稿</b>：不连接模型、不替你发送。点「整理本页要点」预览后，填入 DSH 原生输入框，由你按回车。</div>
     <div class="agent-card"><h4>本页上下文草稿</h4><pre>${esc(draft)}</pre></div>
     <div class="agent-check"><span class="pass">✓ 只抄已入档记录</span><span class="pass">✓ 家系信息未带入</span><span class="pass">✓ 不含本机目录路径</span></div>`;
   const ph = state.agentPhase, open = ph === 'open';
@@ -1150,7 +1188,19 @@ document.addEventListener('click', (e) => {
     if (want) { state.agentSize = size; setAgentRatio(want); }
     return;
   }
-  if (a === 'agent-build') { renderAgent(); toast('已按当前页生成草稿（只抄已入档记录）'); return; }
+  if (a === 'agent-build') { agentPreviewDialog(); return; }
+  if (a === 'agent-send') {
+    const r = deliverAgentDraft(agentDraft());
+    if (r === 'posted') { closeDialog(); toast('草稿已交付宿主面板；请检查内容后自己按回车'); }
+    else { toast('当前没有宿主会话可填入，已改为复制草稿'); }
+    return;
+  }
+  if (a === 'agent-copy') {
+    writeClipboard(agentDraft())
+      .then(() => toast('草稿已复制到剪贴板'))
+      .catch((err) => toast(`复制失败：${(err && err.message) || '未知原因'}`));
+    return;
+  }
   if (a === 'agent-demo') {
     $('#agent-body').insertAdjacentHTML('beforeend', `<div class="agent-card"><h4>模拟回复（演示）</h4><pre>我看到你在「${esc((PAGES.find(x => x[0] === state.view) || [])[1])}」。原型没有连接模型，这条是占位回复；开发版会把草稿填入原生输入框，由你按回车。</pre></div>`);
     toast('模拟回复已插入（未调用模型）');
