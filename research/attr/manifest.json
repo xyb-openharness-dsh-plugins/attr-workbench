@@ -1,0 +1,187 @@
+{
+  "workbench": "attr-workbench",
+  "dataset": "ATTR 临床试验登记摘录",
+  "batch": "2026-10-21",
+  "dataCutoff": "2026-10-21",
+  "recordCount": 434,
+  "bySource": {
+    "chinadrugtrials": 16,
+    "ctv-api": 418
+  },
+  "queries": [
+    {
+      "channel": "ctv-api",
+      "query": "cond:transthyretin amyloidosis",
+      "pages": 2,
+      "hits": 350
+    },
+    {
+      "channel": "ctv-api",
+      "query": "cond:ATTR amyloidosis",
+      "pages": 2,
+      "hits": 257
+    },
+    {
+      "channel": "ctv-api",
+      "query": "term:ATTR-CM",
+      "pages": 1,
+      "hits": 162
+    },
+    {
+      "channel": "ctv-api",
+      "query": "term:ATTRv",
+      "pages": 1,
+      "hits": 26
+    },
+    {
+      "channel": "chinadrugtrials",
+      "detail": {
+        "state": "SUCCESS",
+        "statuses": [
+          {
+            "query": "转甲状腺素蛋白",
+            "states": [
+              {
+                "sourceId": "chinadrugtrials",
+                "state": "SUCCESS",
+                "count": 16,
+                "explanation": "来源返回 16 条记录。"
+              },
+              {
+                "sourceId": "xyb_chinadrugtrials_archive",
+                "state": "NO_RESULTS",
+                "count": 0,
+                "explanation": "仅表示该离线数据包内无命中；本包是按关键词抓取的子集，不是全量 ChinaDrugTrials，也不包含数据截止日之后登记的试验。"
+              },
+              {
+                "sourceId": "chictr_online",
+                "state": "NEEDS_SETUP",
+                "explanation": "search_trials 上游缺少浏览器运行时：browserType.launch: Executable doesn't exist at /Users/qinxiaoqiang/Library/Caches/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+              },
+              {
+                "sourceId": "chictr_pancreatic_archive",
+                "state": "NEEDS_SETUP",
+                "explanation": "路径不存在：/nonexistent/x.db"
+              },
+              {
+                "sourceId": "ctv",
+                "state": "NO_RESULTS",
+                "count": 0,
+                "explanation": "仅表示本地 SQLite/FTS 索引未命中，不代表 ClinicalTrials.gov 上不存在该试验。"
+              },
+              {
+                "sourceId": "ictrp",
+                "state": "FAILED",
+                "explanation": "ictrp_search 上游返回错误：上游工具返回 isError，但未提供错误详情。"
+              }
+            ]
+          },
+          {
+            "query": "淀粉样变性心肌病",
+            "states": [
+              {
+                "sourceId": "chinadrugtrials",
+                "state": "SUCCESS",
+                "count": 9,
+                "explanation": "来源返回 9 条记录。"
+              },
+              {
+                "sourceId": "xyb_chinadrugtrials_archive",
+                "state": "NO_RESULTS",
+                "count": 0,
+                "explanation": "仅表示该离线数据包内无命中；本包是按关键词抓取的子集，不是全量 ChinaDrugTrials，也不包含数据截止日之后登记的试验。"
+              },
+              {
+                "sourceId": "chictr_online",
+                "state": "NEEDS_SETUP",
+                "explanation": "search_trials 上游缺少浏览器运行时：browserType.launch: Executable doesn't exist at /Users/qinxiaoqiang/Library/Caches/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+              },
+              {
+                "sourceId": "chictr_pancreatic_archive",
+                "state": "NEEDS_SETUP",
+                "explanation": "路径不存在：/nonexistent/x.db"
+              },
+              {
+                "sourceId": "ctv",
+                "state": "NO_RESULTS",
+                "count": 0,
+                "explanation": "仅表示本地 SQLite/FTS 索引未命中，不代表 ClinicalTrials.gov 上不存在该试验。"
+              },
+              {
+                "sourceId": "ictrp",
+                "state": "FAILED",
+                "explanation": "ictrp_search 上游返回错误：上游工具返回 isError，但未提供错误详情。"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "files": {
+    "jsonl": "trials-2026.jsonl",
+    "jsonlLines": 434,
+    "jsonlSha256": "a6dce7f59038281cd8606b2e62354787104810f68f68dd50456879eb748229dd",
+    "sqlite": "attr_trials_2026.sqlite",
+    "sqliteRows": 434
+  },
+  "disclaimer": "登记 ≠ 有效 ≠ 安全 ≠ 可入组。状态为登记状态，未核实。所有结论须回溯来源原文并由人工核验。",
+  "channels": [
+    {
+      "source": "ctv-api",
+      "state": "SUCCESS",
+      "records": 418,
+      "scope": "ClinicalTrials.gov 公开 API v2，按 4 条条件/术语查询合并去重；单页 200 条，最多 20 页/查询。",
+      "zeroMeans": "0 条仅表示该查询词在 ClinicalTrials.gov 无命中；不代表全球无相关研究。",
+      "cutoff": "2026-10-21"
+    },
+    {
+      "source": "chinadrugtrials",
+      "state": "SUCCESS",
+      "records": 16,
+      "scope": "CDE 药物临床试验登记与信息公示平台，关键词「转甲状腺素蛋白」「淀粉样变性心肌病」，只取 chinadrugtrials 通道记录。",
+      "zeroMeans": "0 条仅表示本次关键词在该平台无命中；不含未登记或未公开试验。",
+      "cutoff": "2026-10-21"
+    },
+    {
+      "source": "ictrp",
+      "state": "FAILED",
+      "records": 0,
+      "scope": "WHO ICTRP 在线通道。",
+      "zeroMeans": "本轮上游报错，未被成功查询：不得写成\"没有试验\"。",
+      "cutoff": "2026-10-21"
+    },
+    {
+      "source": "chictr_online",
+      "state": "NEEDS_SETUP",
+      "records": 0,
+      "scope": "ChiCTR 在线通道，依赖本机 Playwright 浏览器运行时。",
+      "zeroMeans": "本轮缺少浏览器运行时（UPSTREAM_BROWSER_MISSING），未查询。",
+      "cutoff": "2026-10-21"
+    },
+    {
+      "source": "chictr_pancreatic_archive",
+      "state": "NO_COVERAGE",
+      "records": 0,
+      "scope": "离线语料，仅覆盖胰腺癌 468 条。",
+      "zeroMeans": "本癌种无语料，零结果不构成任何结论。",
+      "cutoff": "2026-09-29"
+    },
+    {
+      "source": "xyb_chinadrugtrials_archive",
+      "state": "NO_COVERAGE",
+      "records": 0,
+      "scope": "小胰宝 CDE 离线归档，仅覆盖胰腺癌关键词。",
+      "zeroMeans": "本癌种无语料。",
+      "cutoff": "2026-09-29"
+    },
+    {
+      "source": "ctv_index",
+      "state": "PARTIAL",
+      "records": 0,
+      "scope": "unified-trial-mcp 本地 ctv 索引，共 1434 条研究（doctor）。",
+      "zeroMeans": "覆盖不足，本轮不作为检索通道使用。",
+      "cutoff": "2026-10-21"
+    }
+  ]
+}
