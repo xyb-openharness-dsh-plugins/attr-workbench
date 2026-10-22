@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 未发布 — 2026-10-22（MinerU 统一口径）
+
+- 默认解析模型 vlm → **pipeline**，回退模型反转为 vlm。
+- 密钥口径：`.secrets/mineru.json` 唯一持久来源，`MINERU_TOKEN` 仅作兜底（`docs/18-MINERU-PARSING.md` 同步）。
+- **Token 优先级改为文件优先**：显式 > `.secrets/mineru.json` > 环境变量。此前 env 优先，一条遗留的过期 env 会让界面新存的 Token 长期不生效。
+- 单测 14 条仍全绿。
+
 ## 未发布 — 阶段 2 功能四项（2026-10-22 凌晨）
 
 在六步移植之上完成 DEV-PLAN 任务 5/6/8 与任务 4 第一步。**仍未装机。**
