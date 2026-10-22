@@ -1,11 +1,12 @@
 # SCHEMA · ATTR 工作台数据模型
 
-日期：2026-10-21。权威文件：`schema/0001_initial.sql`（结构）+ 本文件（语义与边界）。冻结后 sha256 落 `schema/freeze-contract.md`，**改结构只能新增 `0002_*.sql`**。
+日期：2026-10-22。权威文件：`schema/0001_initial.sql` + `schema/0002_rhythm_last.sql` + `schema/0003_import.sql`（结构）+ 本文件（语义与边界）。冻结后 sha256 落 `schema/freeze-contract.md`，**改结构只能新增 `0004_*.sql`**。
 
 ## 0. 四层事实（不合并，是契约不是风格）
 
 ```
-文档层 documents        原件与解析产物：谁传的、什么时候、什么类型、解析到哪一步
+文档层 documents        原件：谁传的、什么时候、什么类型、文件哈希与落盘路径
+任务层 parse_jobs       一次解析尝试：引擎/模型/批次/页数/起止时间/错误码（只增不改，重试新增行）
 候选层 candidate_fields 从文档里抽出来的"可能是事实"的字段，未经用户核对
 记录层 各 *_rows      用户核对后的记录（一条记录 = 一次观察/一次决定/一次用药）
 指标层 metrics/metric_points 可画曲线的数值与分类序列（派生自记录，但不回写记录）
@@ -36,9 +37,17 @@
 | `metric_points` | 采样点：`d/v_num/v_text/src/ord`。数值写 `v_num`，分类写 `v_text`，两者互斥 |
 | `metric_groups` | 指标分组（心脏 / 肾脏 / 血液 / 神经），决定「检查与指标」二级页签顺序 |
 
-### 通用（6 张）
+### 通用（7 张）
 
 `events`（时间轴节点）· `rhythm`（复诊节奏）· `monitor_rows`（随访安排）· `viewpoints`（我的看法）· `documents` · `candidate_fields` · `demo_meta`。
+
+### 解析（1 张，`0003_import.sql`）
+
+| 表 | 说明 |
+| --- | --- |
+| `parse_jobs` | 一次解析尝试：`status ∈ {queued,running,succeeded,failed}`、`engine`、`model`、`batch_id`、`pages`、`error_code`、`error_message`、`started_at`、`finished_at`、`ord`。**重试新增行、旧行留着**：失败记录是复盘依据，不是垃圾 |
+
+`0003` 同时扩了列（只增不改）：`documents` 补 `sha256/rel_path/pages`（按文件哈希去重、能找到原件、页数）；`candidate_fields` 补 `doc_id/metric_key/unit/value_num/value_text`（候选能追到来源文档、能带单位和数值、文本与数值互斥）。
 
 ### ATTR 专属（14 张）
 
@@ -67,6 +76,7 @@
 ## 2. 实体关系
 
 ```
+subjects 1─n documents 1─n parse_jobs
 subjects 1─n documents 1─n candidate_fields
 subjects 1─n metrics 1─n metric_points
 subjects 1─n events / viewpoints / monitor_rows / rhythm
@@ -91,12 +101,15 @@ subjects 1─n family_rows / counsel_rows / daily_rows
 | 家系成员 | `family_rows(private=1)` | 默认查询 `private=0` 才返回；导出需显式勾选 |
 | 指标 | `metric_points` 只写 `v_num` 或 `v_text` 之一 | CHECK 约束：两者不得同时非空 |
 | 试验收藏 | `trials` 存 `record_id` + 备注 | 不存疗效字段 |
+| 解析一次报告 | 新增 `parse_jobs` 行 + 候选写入 + `documents.status` 同事务 | 失败整体回滚：候选 0 条、原件保留、`job.status='failed'` 带错误码 |
+| 接受候选 | `metric_points` 新增 + 候选 `status='accepted'` | 不写任何审核字段（接受 ≠ 审核）；`metric_key` 为空的只提示项不许接受 |
+| 重解析 | 新增 `parse_jobs` 行；未确认候选清理，已 `accepted` 的保留 | 候选 id 必须带 `jobId`，否则已接受的行会撞主键 |
 
 ## 4. 变化矩阵（改这些地方要同步哪些文件）
 
 | 变更 | 必须同步 | 不许怎样 |
 | --- | --- | --- |
-| 加表/加列 | 新增 `0002_*.sql` + `docs/SCHEMA.md` §1 + `demo/build-demo-data.mjs` + 读模型 | 改 0001；只改 SQL 不改生成器 |
+| 加表/加列 | 新增 `0004_*.sql`（下一个序号）+ `docs/SCHEMA.md` §1 + `demo/build-demo-data.mjs` + 读模型 + `schema/freeze-contract.md` 追加哈希 | 改已冻结的 0001/0002/0003；只改 SQL 不改生成器 |
 | 改指标口径（如 hgb 单位） | `metrics` 种子 + `docs/CLINICAL-DATA-2026.md` + 页面文案 | 在渲染层换算 |
 | 改分期规则 | **不改代码**，只改"医生给出"的记录位 | 在任何地方自动算 Gillmore 分期 |
 | 加一级页 | `SPEC.md` §3/§4 + `DIFF-MATRIX.md` + `app.js` PAGES + 无头页签穷举 | 只加页面不加场景 |

@@ -17,6 +17,7 @@ import { hasDemoData, seedDemo } from './demo.js';
 import { bootstrap, bpRows, getProfile, listSubjects } from './readmodels.js';
 import { addBpRow } from './writes.js';
 import { exportSummaryText } from './export.js';
+import { ImportService } from './import.js';
 import { workspaceProblems } from './server.js';
 import { version, build, displayVersion } from '../lib/version.js';
 
@@ -30,6 +31,19 @@ export function validateWorkspacePath(p) {
 export class Workbench {
   #db = null;
   #workspace = null;
+  #imports = null;
+
+  /**
+   * 用已经打开的库建实例（宿主侧 `apply()` 用这条：它自己开了内存库或 root 库，
+   * 不该再走一遍目录校验）。workspace 为 null 时导入服务仍可查，但保存原件会 409。
+   */
+  static fromDatabase(db, { workspace = null } = {}) {
+    if (!db) throw new Error('fromDatabase 需要一个已打开的数据库');
+    const wb = new Workbench();
+    wb.#db = db;
+    wb.#workspace = workspace ? workspace : null;
+    return wb;
+  }
 
   /** 打开（必要时创建）工作区里的库。workspace 必须已经通过 validateWorkspacePath。 */
   static async open(workspace) {
@@ -89,6 +103,14 @@ export class Workbench {
 
   /** 门诊摘要导出（家系与看法按构造排除，见 dsh/export.js 头注释）。 */
   exportSummary(profileKey) { return exportSummaryText(this.#db, profileKey); }
+
+  /** 导入链路（上传 / 解析 / 候选 / 接受）。懒建：不导入时不留对象，也不读磁盘。 */
+  imports() {
+    if (!this.#imports) {
+      this.#imports = new ImportService(this.#db, { workspaceDir: this.#workspace });
+    }
+    return this.#imports;
+  }
 
   close() {
     if (this.#db) { close(this.#db); this.#db = null; }

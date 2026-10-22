@@ -158,15 +158,37 @@ export function servePublic(req, res, urlPath) {
   return sendFile(res, join(PUBLIC_DIR, 'index.html'));
 }
 
-export function createHandler({ workbench }) {
-  return async function handle(req, res) {
+export function createHandler({ workbench, prefix = '' }) {
+  const handle = async function handle(req, res) {
     const url = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
-    const path = url.pathname;
+    const rawPath = url.pathname;
+    /* 宿主把整段挂在 /api/attr 下，而本地 dev-server 挂在根上。路由只写一份，
+       靠 prefix 剥掉（剥不掉就说明不是本工作台的请求，直接 404，不去猜）。 */
+    let path = rawPath;
+    if (prefix) {
+      if (rawPath !== prefix && !rawPath.startsWith(prefix + '/')) {
+        res.writeHead(404, { 'content-type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ error: 'not_found', path: rawPath }));
+      }
+      path = rawPath.slice(prefix.length) || '/';
+    }
 
     const json = (code, body) => {
       const buf = Buffer.from(JSON.stringify(body), 'utf8');
       res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'content-length': buf.length });
       res.end(buf);
+    };
+
+    /* 导入链路的错误统一收口：ImportError 自带 status/code/field，
+       ValidationError（writes.js）是 400 + 字段名，其余当 500 并保留原文。 */
+    const fail = (error) => {
+      if (error?.name === 'ValidationError') {
+        return json(400, { error: 'invalid', field: error.field, message: error.message });
+      }
+      if (error?.status && error?.code) {
+        return json(error.status, { error: error.code, field: error.detail || null, message: error.message });
+      }
+      return json(500, { error: 'failed', message: error?.message || '未知错误' });
     };
 
     if (path === '/api/health') return json(200, { ok: true, version: workbench.version });
@@ -209,6 +231,111 @@ export function createHandler({ workbench }) {
       }
     }
 
+    /* ---------------- 导入链路 ---------------- */
+
+    if (req.method === 'GET' && path === '/api/import/documents') {
+      const profileKey = url.searchParams.get('profile') || 'A';
+      try {
+        return json(200, { ok: true, documents: workbench.imports().listDocuments(profileKey) });
+      } catch (error) { return fail(error); }
+    }
+
+    /* 上传：body 是原始字节（不套 multipart——多一层解析就多一处能把中文文件名弄坏的地方）。
+       文件名 / 日期 / 类型走 query。超 32MB 直接 413。 */
+    if (req.method === 'POST' && path === '/api/import/upload') {
+      const profileKey = url.searchParams.get('profile') || 'A';
+      const name = url.searchParams.get('name') || '';
+      const date = url.searchParams.get('date') || null;
+      const type = url.searchParams.get('type') || null;
+      let bytes;
+      try {
+        bytes = await readRawBody(req);
+      } catch (error) {
+        return json(error.statusCode || 400, { error: 'bad_body', message: error.message });
+      }
+      try {
+        const saved = workbench.imports().saveDocument({ profileKey, filename: name, bytes, date, type });
+        return json(saved.duplicate ? 200 : 201, { ok: true, ...saved });
+      } catch (error) { return fail(error); }
+    }
+
+    if (req.method === 'POST' && path === '/api/import/parse') {
+      let body;
+      try {
+        body = await readJsonBody(req, { limitBytes: 64 * 1024 });
+      } catch (error) {
+        return json(error.statusCode || 400, { error: 'bad_body', message: error.message });
+      }
+      try {
+        /* 解析可能要几十秒：不加超时重试、不排队，等云端返回；
+           token 默认走 .secrets / env，body 里带 token 只为临时试用（不落库、不写日志）。 */
+        const result = await workbench.imports().parseDocument({
+          profileKey: body.profileKey || 'A',
+          docId: body.docId,
+          token: body.token || null,
+          modelVersion: body.modelVersion || undefined,
+        });
+        return json(200, { ok: true, ...result });
+      } catch (error) { return fail(error); }
+    }
+
+    if (req.method === 'GET' && path === '/api/import/candidates') {
+      const profileKey = url.searchParams.get('profile') || 'A';
+      try {
+        return json(200, {
+          ok: true,
+          candidates: workbench.imports().listCandidates(profileKey, {
+            docId: url.searchParams.get('doc') || null,
+            status: url.searchParams.get('status') || null,
+          }),
+        });
+      } catch (error) { return fail(error); }
+    }
+
+    if (req.method === 'POST' && path === '/api/import/candidates/accept') {
+      let body;
+      try { body = await readJsonBody(req, { limitBytes: 16 * 1024 }); } catch (error) {
+        return json(error.statusCode || 400, { error: 'bad_body', message: error.message });
+      }
+      try {
+        return json(200, {
+          ok: true,
+          ...workbench.imports().acceptCandidate({ profileKey: body.profileKey || 'A', id: body.id, date: body.date || null }),
+          /* 接受后把该档案的指标形状回给界面，省一次 bootstrap（与 /api/bp 的做法一致） */
+          metrics: workbench.bootstrap().profiles?.[body.profileKey || 'A']?.metrics ?? null,
+        });
+      } catch (error) { return fail(error); }
+    }
+
+    if (req.method === 'POST' && path === '/api/import/candidates/reject') {
+      let body;
+      try { body = await readJsonBody(req, { limitBytes: 16 * 1024 }); } catch (error) {
+        return json(error.statusCode || 400, { error: 'bad_body', message: error.message });
+      }
+      try {
+        return json(200, { ok: true, ...workbench.imports().rejectCandidate({ profileKey: body.profileKey || 'A', id: body.id }) });
+      } catch (error) { return fail(error); }
+    }
+
+    if (req.method === 'POST' && path === '/api/import/candidates/manual') {
+      let body;
+      try { body = await readJsonBody(req, { limitBytes: 16 * 1024 }); } catch (error) {
+        return json(error.statusCode || 400, { error: 'bad_body', message: error.message });
+      }
+      try {
+        return json(201, {
+          ok: true,
+          ...workbench.imports().addManualCandidate({
+            profileKey: body.profileKey || 'A',
+            docId: body.docId || null,
+            metricKey: body.metricKey,
+            valueText: body.valueText,
+            unit: body.unit || null,
+          }),
+        });
+      } catch (error) { return fail(error); }
+    }
+
     if (path.startsWith('/api/')) return json(404, { error: 'not_found', path });
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -222,6 +349,25 @@ export function createHandler({ workbench }) {
       if (sendFile(res, join(PUBLIC_DIR, 'index.html'))) return;
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
       res.end('404');
+    }
+  };
+
+  /* 兜底：任何未预料的异常都变成 JSON 500，而不是让请求挂着（客户端等成"没反应"）。
+     实测踩过：中文文件名走 query 时 URL 解析抛错，浏览器端看到的是空白响应，
+     排查时完全不知道服务端出过事——所以这层必须有，且要把原因写出来。 */
+  return async function handler(req, res) {
+    try {
+      await handle(req, res);
+    } catch (error) {
+      if (res.headersSent) {
+        try { res.end(); } catch { /* 响应已开始，只能尽力收尾 */ }
+        return;
+      }
+      const buf = Buffer.from(JSON.stringify({
+        error: 'unhandled', message: error?.message || '服务端未预料的错误', path: req.url,
+      }), 'utf8');
+      res.writeHead(500, { 'content-type': 'application/json; charset=utf-8', 'content-length': buf.length });
+      res.end(buf);
     }
   };
 }

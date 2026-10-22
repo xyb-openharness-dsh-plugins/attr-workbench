@@ -14,12 +14,12 @@
 | M0 | 骨架可跑 | `npm run check` 0 error；DSH 包结构校验通过；`dsh.client.platform === "web"` | ✅ 2026-10-21 |
 | M1 | 调研与 SPEC | `SPEC.md` 12 页 + T1–T8 + A1–A20；`PATIENT-FLOW.md` 三条线；`DIFF-MATRIX.md` 有删除清单 | ✅ 2026-10-21 |
 | M2 | 原型可点 | 12 一级页 / 40 二级页签真实鼠标点击全命中（初稿记 41，实点后更正为 40：看板无二级页签）；`body.scrollWidth === innerWidth`；控制台 0 error、0 个 4xx；AI 五态与字号三档实测 | ✅ 2026-10-21 |
-| M3 | 数据模型 | 28 张表迁移可重放；四契约在 CHECK 上落地；演示数据一份来源双产物 | ✅ 2026-10-21 |
+| M3 | 数据模型 | 迁移可重放（`0001` 的 28 张；`0003` 追加 `parse_jobs` 后 29 张）；四契约在 CHECK 上落地；演示数据一份来源双产物 | ✅ 2026-10-21（会话、观察、解析任务分表，四层不合并） |
 | M4 | 临床库 | 434 条登记摘录，逐通道终态入 `source_coverage`；manifest / jsonl / sqlite 行数一致 | ✅ 2026-10-21 |
 | G1 | 需求签字 | HVT 审核 B 级清零 + 用户原话确认 | ⏸ **等用户确认** |
 | G2 | 原型签字 | 用户逐页确认 12 页（本版为简化确认：只看截图 + 文字摘要） | ⏸ 等确认 |
-| G3 | 数据模型签字 | 用户确认 28 表与四契约；`schema/freeze-contract.md` 落 sha256 | ⏸ 等确认 |
-| M5 | 开发版 | 移植六步完成；血压录入 / 门诊摘要导出 / AI 草稿交付（iframe 侧）完成并实测；MinerU 客户端层落地 + 真实鉴权自检。剩余：MinerU 抽取与导入编排（labparse / import / UI） | 🔵 进行中（7/8，剩任务 4 第二步） |
+| G3 | 数据模型签字 | 用户确认 28 表 + 0003 的 `parse_jobs`（共 29 张）与四契约；`schema/freeze-contract.md` 落 sha256 | ⏸ 等确认 |
+| M5 | 开发版 | 移植六步完成；血压录入 / 门诊摘要导出 / AI 草稿交付（iframe 侧）完成并实测；MinerU 全链路（客户端层 → labparse 抽取 → import 编排 → 0003 迁移 → 上传/核对 UI）真实云端跑通 | ✅ 2026-10-22（8/8） |
 | M6 | 装机 | Desktop Harness 活动 profile 安装；三层验收（配置层 / 加载层 / 交互层） | 未开始 |
 | M7 | 发布 | 仓库 push + 市场描述 + LICENSE/NOTICE 复核 | 未开始 |
 
@@ -29,16 +29,37 @@
 
 | 序号 | 任务 | 产出 | 状态 |
 | --- | --- | --- | --- |
-| 1 | `dsh/store.js` + 迁移执行器 | 可重放 28 表；`0002_rhythm_last.sql` 已冻结 | ✅ |
+| 1 | `dsh/store.js` + 迁移执行器 | 可重放 29 表（`0001` 28 张 + `0003` 的 `parse_jobs`）；`0002_rhythm_last.sql`、`0003_import.sql` 均已冻结 | ✅ |
 | 2 | `dsh/readmodels.js` | 12 页读模型；与 `demo-data.js` 逐字段 parity（store.test ③ deepStrictEqual） | ✅ |
 | 3 | `dsh/server.js` 接口 | `/api/health`、`/api/bootstrap`、`POST /api/bp`、`GET /api/export/summary`、静态文件、JSON 404、路径穿越拦截 | ✅ |
-| 4 | MinerU 解析链路 | 上传 → 候选 → 草稿核对 | 🔵 第一步完（客户端层 14 测 + 真实鉴权自检 ✅）；剩余 labparse 抽取（ATTR 指标字典）/ import 编排（0003 迁移）/ 上传核对 UI |
+| 4 | MinerU 解析链路 | 上传 → 候选 → 草稿核对。`dsh/labparse.js`（纯函数抽取）→ `dsh/import.js`（编排 + 事务）→ `schema/0003_import.sql`（`parse_jobs` + 四列扩展）→ 6 个 HTTP 端点 → 资料库/核对页 UI | ✅（24 测 + 真实云端 1 份 PDF，见 `docs/18-MINERU-PARSING.md` §7） |
 | 5 | 血压录入 | 体位（卧/坐/立）+ 症状 + 当时用药；写入层 `dsh/writes.js` + `POST /api/bp` + 录入表单 | ✅（原文名"四点位/缺健侧"是乳腺模板残留，已按 ATTR 语义实现并注明） |
 | 6 | 导出 | 门诊摘要 `dsh/export.js`（所见即所得；家系与看法按构造排除） | ✅ |
 | 7 | 一图秀接真实数据 | 与原型几何一致（无头实测：2 线 × 8 段三次贝塞尔、事件竖虚线 2 条、分类序列只点不连线） | ✅ |
 | 8 | AI 草稿接原生输入框 | iframe 侧合同完（预览弹窗 → `pinky:agent-draft` postMessage，同源桩实测 type/origin/source 全对；独立启动退化复制）。**宿主侧监听端不在本仓库**，列入 M6 装机交互层验证 | ✅（本仓库侧） |
 
 **顺序不可颠倒**：读模型先于接口，接口先于解析；解析先于导出。理由：导出模板一旦先写，会把读模型的字段名锁死在错误形状上（乳腺 v0.4 踩过）。
+
+### M5 收尾：MinerU 全链路（2026-10-22）
+
+四层不合并照旧：原件 `documents` → 解析任务 `parse_jobs` → 抄写结果 `candidate_fields` → 用户确认后才写 `metric_points`。任一步不越层搬运。
+
+| 层 | 文件 | 要点 |
+| --- | --- | --- |
+| 词典 | `dsh/dictionary.js` | 4 项可入档（NT-proBNP / eGFR / 体重 / NYHA）+ 肌酐等只提示项；`key: null` = 没有趋势位，不许接受 |
+| 抽取 | `dsh/labparse.js` | 纯函数：词边界、不等式原样、按列对齐、整行放弃、报告日期。词表与 `metrics` 表同源（测试 ⑳ 盯死） |
+| 编排 | `dsh/import.js` | 上传去重（档案+sha256）、临时文件+rename 落盘、解析成功/候选/文档状态/任务状态同一事务 |
+| 迁移 | `schema/0003_import.sql` | 新增 `parse_jobs`；`documents` 补 `sha256/rel_path/pages`；`candidate_fields` 补 `doc_id/metric_key/unit/value_num/value_text` |
+| 接口 | `dsh/server.js` | 6 个端点 + `fail()` 统一错误出口 + 兜底 try/catch（未预料异常也要回 JSON 500，不能把请求挂死） |
+| UI | `public/app.js` | 资料库上传/解析状态表；核对页候选表（单位、`unitMismatch` 提示、确认入档/不要、手填） |
+
+真实云端实测（同一份 `attr-lab.pdf`，MinerU API v4 四步，12.7 s）：3 条可入档候选 + 1 条只提示项（肌酐 118 μmol/L），报告日期 `2026-04-24` 自动识别，`warnings` 只报「1 项暂不建趋势」。无头实测：接受 → 候选`candidate`→`accepted`、指标点 +1、一图秀出现新点；控制台 0 error、0 个 4xx、`body.scrollWidth === innerWidth`。
+
+这一轮真实数据逼出三个生产级问题（都已修 + 有断言）：
+
+1. **整表是 HTML `<table>`**：行内兜底在原文上跑，会把 `<td>肌酐</td><td>118</td>` 之间的 `>` 当不等式，抄出 `>118` 假候选。修法：行内兜底只在剥掉表格后的文字上跑，且表格已出的指标不再出行内候选（测试 ㉓）。
+2. **OCR 把 `a` 读成 `ă`**（U+0103 预组合字符）：写成 `a[\u0300-\u036f]*` 永远配不上，因为 `ă` 本身就占了 `a` 的位置。修法：按 NFD 分解表反查每个基字母对应的预组合字符，逐字母列举（测试 ㉑）。
+3. **全部接受后再解析撞主键**：候选 id 原为 `c-<docId>-<序号>`，已接受的按规则不删，重解析直接 `UNIQUE constraint failed`；且 `parse_jobs` 是事务外插的，报错后永远停在 `running`。修法：id 带 `jobId`；落库失败也收口成 `failed`（测试 ㉔）。
 
 ### 本轮移植的两个数据层修正（都走了"只增不改"）
 
@@ -55,9 +76,8 @@
 ## 阶段 3 清单（M6 装机前）
 
 1. **customFrame 升级评估**（可选）：按乳腺样板补 React 外壳（根首元素 `<header>` + `--dsh-frame-leading-clearance` 避让 + 会话常驻不卸载）；不升就维持标准分栏，页面内 AI 面板已可拖可记忆。
-2. MinerU 解析链路（任务 4）+ 四点位录入（任务 5）+ 导出（任务 6）+ AI 草稿接原生输入框（任务 8）。
-3. 装机：`~/Library/Application Support/dsh-desktop/harness/profiles/web`，`NODE_OPTIONS= npx pnpm@10.15.0 --dir <profile> add -w <abs>.tgz`；包名写进 `dsh.profile.bundles`；`dsh.client.platform` 必须 `"web"`。
-4. 三层验收：配置层（state.json / bundles）/ 加载层（harness.log 无 reject）/ 交互层（真实点击 12 页）。
+2. 装机：`~/Library/Application Support/dsh-desktop/harness/profiles/web`，`NODE_OPTIONS= npx pnpm@10.15.0 --dir <profile> add -w <abs>.tgz`；包名写进 `dsh.profile.bundles`；`dsh.client.platform` 必须 `"web"`。
+3. 三层验收：配置层（state.json / bundles）/ 加载层（harness.log 无 reject）/ 交互层（真实点击 12 页，含 MinerU 上传—核对一整套）。
 5. 回流：`~/.workbuddy/skills/` 家族约定更新；**食管癌 `public/app.js:1119` 有同一处键盘步长量纲 bug，顺手修**（见 LESSONS L24）。
 
 ---

@@ -8,9 +8,10 @@
 | --- | --- | --- |
 | `0001_initial.sql` | ed53b00aaa793601a8bd7e0f773884ff692446e98d141bc2e9b563062a1875b7 | 28 张表、全部 CHECK、全部索引。**只读** |
 | `0002_rhythm_last.sql` | 3ba4ca68a32513d367ff81ab84854017ecb2992173ab0438b3b531522296ed6d | 给 `rhythm` 补 `last TEXT` 一列，见下节。**只读** |
+| `0003_import.sql` | 911d76a76fa466e3244eb1c67bf3a4f7a1abcfdae1e267785bd8006bfcb75162 | 导入链路：新建 `parse_jobs`；`documents` 补 `sha256`/`rel_path`/`pages`；`candidate_fields` 补 `doc_id`/`metric_key`/`unit`/`value_num`/`value_text`。只加列，无 NOT NULL、无默认值。**只读** |
 
 表格由 `scripts/check-schema.mjs` 逐文件比对（正则只认纯文件名，别写成 `schema/0001_*.sql`）。
-已执行迁移：以上两个。`0003_*` 及以后继续按"只增不改"追加。
+已执行迁移：以上三个。`0004_*` 及以后继续按"只增不改"追加。
 
 ## 0002_rhythm_last.sql 是什么、为什么加
 

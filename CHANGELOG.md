@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## 未发布 — 2026-10-22（M5 收尾：MinerU 全链路打通）
+
+DEV-PLAN 任务 4 第二步完成，M5 8/8。**仍未装机。**
+
+### 新增
+
+- **ATTR 指标词典** `dsh/dictionary.js`：4 项可入档（NT-proBNP / eGFR / 体重 / NYHA 分级）+ 肌酐等「只提示、不建趋势」项（`key: null`）。词表与 `metrics` 表同源，测试 ⑳ 盯着，避免出现一列没有读模型的指标。
+- **抽取层** `dsh/labparse.js`（纯函数，不联网不碰库）：词边界（`Hb` 不吃 `HbA1c`）、不等式原样（`<0.5` 数值字段留 NULL）、按列对齐、列数不一致整行放弃、报告日期识别（`2026-02-31` 不认）、HTML 表与 Markdown 表同处理。
+- **编排层** `dsh/import.js`：上传（档案+sha256 去重、临时文件后 rename）、解析（`parse_jobs` 留历史）、候选落库、接受即写 `metric_points`。候选写入 + 文档状态 + 任务状态同一事务；失败整体回滚。
+- **迁移** `schema/0003_import.sql`（sha256 `911d76a7…`）：新增 `parse_jobs`；`documents` 补 `sha256/rel_path/pages`；`candidate_fields` 补 `doc_id/metric_key/unit/value_num/value_text`。全量 29 张表。
+- **接口** 6 个：`GET /api/import/documents`、`POST /api/import/upload`（原始字节）、`POST /api/import/parse`、`GET /api/import/candidates`、`POST /api/import/candidates/accept|reject|manual`。`createHandler({ prefix })` 一套路由同服 dev-server 与 DSH 宿主。
+- **UI**：资料库页上传表单 + 解析状态表（重试/解析）；草稿核对页候选表（单位、`unitMismatch` 提示常见写法、确认入档/不要、手填兜底）。
+- 单测 22 → 24 条（`test/import.test.mjs`），全套 73 条。
+
+### 修复（都是真实数据逼出来的）
+
+- **`POST /api/import/upload` 空响应**：`new URL()` 碰到未解码的中文 query 抛错，而 handler 外层没有 catch，请求被挂死、浏览器只看到空白。现在未预料异常统一回 JSON 500（带 `path`）。
+- **HTML 表抄出 `>118` 假候选**：行内兜底在含标签的原文上跑，把 `<td>` 之间的 `>` 当不等式。现在行内兜底只吃剥掉表格后的文字，且表格已出的指标不再出行内候选。
+- **`Creătinine` 认不出**：OCR 把 `a` 读成 `ă`（U+0103 预组合字符），`a[\u0300-\u036f]*` 永远配不上。改为按 NFD 分解表逐字母列举预组合写法；仍不做前缀/编辑距离（`Creatinin` 照样不认）。
+- **全部接受后重解析撞主键**：候选 id 原为 `c-<docId>-<序号>`，已接受的按规则不删，重解析直接 `UNIQUE constraint failed`；且 `parse_jobs` 是事务外插的，报错后永远停在 `running`。现在 id 带 `jobId`，落库失败也收口成 `failed`。
+- **核对页把表挤变形**：单位提示塞进「值」列会让来源/日期折成三行。提示改挂指标名下方单独一行。
+- **文本类结论被标「缺单位」**：心电图结论这类本来就没有单位，标了等于说抄写有问题。`noteOnly` 项不再显示该提示。
+
+### 实测记录
+
+真实云端解析同一份 `attr-lab.pdf`（MinerU API v4，12.7 s）：4 条候选（NT-proBNP 980 pg/mL、eGFR 58、体重 71.2 kg、肌酐 118 μmol/L 只提示），报告日期 `2026-04-24` 自动识别。无头实测：接受 → `candidate`→`accepted`、指标点 +1、一图秀出现新点；控制台 0 error、0 个 4xx、`scrollWidth === innerWidth`。截图 `docs/screenshots/13…16`。
+
 ## 未发布 — 2026-10-22（MinerU 统一口径）
 
 - 默认解析模型 vlm → **pipeline**，回退模型反转为 vlm。

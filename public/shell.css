@@ -88,3 +88,5 @@ body.agent-dragging *{cursor:col-resize !important}
 .dev-entry input:focus-visible,.dev-entry select:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
 .dev-entry .unit{font-size:11px;color:#8a99a6}
 .dev-entry-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+/* 文件选择框不适用 32px 定高：给足行高，选中后显示的长文件名要能换行 */
+.dev-entry input[type=file]{height:auto;min-height:32px;padding:5px 8px;font-size:12px;line-height:1.5}

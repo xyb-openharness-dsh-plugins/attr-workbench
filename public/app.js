@@ -16,7 +16,7 @@
    全部与原型一致。 */
 
 const APP_INFO = {
-  version: '0.1.0',
+  version: '0.2.0',
   build: '2026-10-21',
   channel: 'dev',
   channelLabel: '开发版 · 本机优先',
@@ -163,6 +163,141 @@ function textDialog(title, text) {
     `<pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.7;margin:0">${esc(text)}</pre>`,
     `<button data-action="close">关闭</button>`);
 }
+/* ---------------- 开发版新增：导入链路（上传 / 解析 / 候选核对） ----------------
+   数据从 `/api/import/*` 单独取，不走 bootstrap：bootstrap 的 candidates 是原型形状
+   （5 位元组、无单位、无 metricKey），拿它渲染不出「能不能入档、缺不缺单位」。
+   两份数据都读同一个库，不存在"两套口径"，只是给不同界面用不同形状。
+   界面里的新增节点全部包在 <!--dev-only--> … <!--/dev-only--> 之间：
+   parity 测试按注释整块摘除，原型那张只读表不受影响。 */
+const IMPORTS = { docs: [], candidates: [], loadedFor: '', loading: false, error: '' };
+
+function refreshImports(force = false) {
+  const key = state.profile;
+  if (!force && (IMPORTS.loading || IMPORTS.loadedFor === key)) return Promise.resolve();
+  IMPORTS.loading = true;
+  IMPORTS.error = '';
+  return Promise.all([
+    apiGet(`/api/import/documents?profile=${encodeURIComponent(key)}`),
+    apiGet(`/api/import/candidates?profile=${encodeURIComponent(key)}`),
+  ]).then(([d, c]) => {
+    /* 拉取期间切换了档案：丢弃过期结果，别把 A 的候选画到 B 上 */
+    if (state.profile !== key) return;
+    IMPORTS.docs = d.documents || [];
+    IMPORTS.candidates = c.candidates || [];
+    IMPORTS.loadedFor = key;
+  }).catch((err) => {
+    IMPORTS.error = (err && err.message) || '读取导入状态失败';
+  }).finally(() => {
+    IMPORTS.loading = false;
+    render();
+  });
+}
+
+function importBusy(message) {
+  if (message) toast(message);
+}
+
+function docStatusTone(status) {
+  if (status === '已核对') return 'green';
+  if (status === '解析失败') return 'red';
+  if (status === '待解析') return 'yellow';
+  return '';
+}
+
+/** 资料库页的开发版区块：上传 + 需要动作的文档（表格里列的仍是全部资料）。 */
+function importPanel() {
+  const docs = IMPORTS.docs.filter(d => d.sha256);
+  const actionable = docs.filter(d => d.status === '待解析' || d.status === '解析失败');
+  const rows = docs.map(d => {
+    const job = d.lastJob;
+    const err = d.status === '解析失败' && job ? `<div class="small-note">${esc(job.error_code || '')}：${esc((job.error_message || '').slice(0, 160))}</div>` : '';
+    const action = d.status === '解析失败'
+      ? `<button class="text-button" data-action="parse-doc" data-id="${esc(d.id)}">重试</button>`
+      : d.status === '待解析'
+        ? `<button class="text-button" data-action="parse-doc" data-id="${esc(d.id)}">解析</button>`
+        : `<span class="muted">${d.status === '已核对' ? '已核对' : '待核对'}</span>`;
+    return [
+      `<b>${esc(d.name)}</b>${d.filePresent ? '' : ' <span class="muted">（原件不在了）</span>'}${err}`,
+      esc(d.date || '—'),
+      job ? `${esc(job.status)}${job.pages ? ` · ${job.pages} 页` : ''}` : '未解析',
+      action,
+    ];
+  });
+  return `<!--dev-only-->
+    <form class="dev-entry" id="upload-form" autocomplete="off">
+      <h3>放一份报告</h3>
+      <div class="dev-entry-row">
+        <label class="grow">文件<input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.md,.txt" required></label>
+        <label>报告日期<input type="date" name="date"></label>
+        <label>类型<select name="type">
+          <option value="">未分类</option><option value="化验">化验</option><option value="心超">心超</option>
+          <option value="核素">核素</option><option value="基因">基因</option><option value="出院小结">出院小结</option>
+        </select></label>
+      </div>
+      <div class="dev-entry-foot">
+        <button class="primary" type="submit">上传到资料目录</button>
+        <span class="small-note">原件保存在你选的资料目录里；只有你点「解析」时才会把这份文件上传到 mineru.net 云端识别。</span>
+      </div>
+    </form>
+    <section class="card" style="margin-top:14px">
+      <div class="card-head"><div><h2>解析状态</h2><p>解析失败会保留原件与错误码，可以重试；重试不会清掉之前的记录。</p></div>
+        <div><button class="soft" data-action="refresh-cands">刷新</button></div></div>
+      ${IMPORTS.error ? notice(`读取失败：${esc(IMPORTS.error)}`, 'warn') : ''}
+      ${rows.length ? table(['文件', '日期', '最近一次解析', ''], rows) : `<p class="small-note">还没有导入过报告。${actionable.length ? '' : ''}</p>`}
+    </section>
+    <!--/dev-only-->`;
+}
+
+/** 草稿核对页的开发版区块：带单位、能拒绝、能手填。原型那张只读表由 parity 白名单摘除。 */
+function candidatesPanel() {
+  const list = IMPORTS.candidates.filter(c => c.status === 'candidate');
+  const decided = IMPORTS.candidates.filter(c => c.status !== 'candidate');
+  const rows = list.map(c => {
+    /* 文本类（结论、分级）本来就没有单位，标「缺单位」等于说这件抄写有问题，是误导。
+       单位不一致的提示挂在指标名下面：塞进「值」列会把整张表挤变形（实测）。 */
+    const unit = c.unit
+      ? esc(c.unit)
+      : (c.noteOnly ? '' : '<span class="muted">缺单位</span>');
+    const unitNote = c.unitMismatch
+      ? `<div class="small-note">单位与常见写法不同：常见是 ${esc(c.unitExpected || '—')}，请核对</div>`
+      : '';
+    const where = c.noteOnly
+      ? pill('暂不纳入趋势', 'yellow')
+      : `<button class="text-button" data-action="accept-cand" data-id="${esc(c.id)}">确认入档</button>`;
+    return [
+      `<b>${esc(c.name)}</b>${c.noteOnly ? '<div class="small-note">报告里有，本工作台没有这一项的趋势位</div>' : ''}${unitNote}`,
+      `<b>${esc(c.valueText)}</b> <small>${unit}</small>`,
+      esc(c.source || ''),
+      esc(c.docDate || '未填日期'),
+      `${where} <button class="text-button" data-action="reject-cand" data-id="${esc(c.id)}">不要</button>`,
+    ];
+  });
+  return `<!--dev-only-->
+    <section class="card" style="margin-top:14px">
+      <div class="card-head"><div><h2>待核对（${list.length}）</h2><p>「确认入档」只表示这一行抄写无误，不是医学审核。</p></div>
+        <div><button class="soft" data-action="refresh-cands">重新读取</button></div></div>
+      ${IMPORTS.error ? notice(`读取失败：${esc(IMPORTS.error)}`, 'warn') : ''}
+      ${list.length ? table(['指标', '值', '来源', '日期', ''], rows) : `<p class="small-note">没有待核对的候选。先在「资料库」上传一份报告并点解析。</p>`}
+      ${decided.length ? `<p class="small-note">已处理 ${decided.length} 条（接受 ${decided.filter(c => c.status === 'accepted').length}、不要 ${decided.filter(c => c.status === 'rejected').length}）。已接受的如果填错了，请新增一条更正记录，不要删除。</p>` : ''}
+    </section>
+    <form class="dev-entry" id="manual-form" autocomplete="off">
+      <h3>漏了哪一项，手填</h3>
+      <div class="dev-entry-row">
+        <label>指标<select name="metricKey">
+          <option value="ntprobnp">NT-proBNP</option><option value="egfr">eGFR</option>
+          <option value="weight">体重</option><option value="nyha">NYHA 心功能</option>
+        </select></label>
+        <label>值<input type="text" name="valueText" required placeholder="如 980 / III 级"></label>
+        <label>单位<input type="text" name="unit" maxlength="24" placeholder="可不填"></label>
+      </div>
+      <div class="dev-entry-foot">
+        <button class="primary" type="submit">加为候选</button>
+        <span class="small-note">手填的同样只是候选，确认后才进记录层；日期取这份报告的日期。</span>
+      </div>
+    </form>
+    <!--/dev-only-->`;
+}
+
 function loadBootstrap() {
   const fallback = (typeof window !== 'undefined' && window.DEMO_DATA) || null;
   const endpoint = `${apiBase()}/api/bootstrap`;
@@ -529,14 +664,13 @@ function viewRecords(p, sub) {
       ${notice('演示环境不上传真实文件。开发版会要求先选择本机资料目录，原件保留在目录内，解析结果只作为候选。', 'plain')}
       <div class="flow-steps"><span class="on">1 上传</span><span class="fs-arrow">→</span><span>2 解析</span><span class="fs-arrow">→</span><span>3 核对</span><span class="fs-arrow">→</span><span>4 入档</span></div>
       ${card('已入库资料', table(['文件', '日期', '类型', '状态'], p.docs.map(d => [`<b>${esc(d[1])}</b>`, esc(d[2]), esc(d[3]), pill(d[4], d[4] === '已核对' ? 'green' : 'yellow')])))}
-      <p class="small-note">去重按「档案 + 文件指纹」；同一份文件重复导入不会重置解析状态。</p>`;
+      <p class="small-note">去重按「档案 + 文件指纹」；同一份文件重复导入不会重置解析状态。</p>
+      ${importPanel()}`;
   }
   if (sub === '草稿核对') {
     return `${pageHead('草稿核对', '解析出来的只是候选；勾选并确认后才进入记录层。', '')}
       ${notice('「已接受」只表示你确认这条抄写无误，<b>不等于</b>医学审核。', 'warn')}
-      ${card('候选字段', table(['字段', '值', '来源', '状态', ''], p.candidates.map(c => [esc(c[1]), `<b>${esc(c[2])}</b>`, esc(c[3]),
-        c[4] === 'accepted' ? pill('已接受', 'green') : pill('待核对', 'yellow'),
-        c[4] === 'accepted' ? '<span class="muted">—</span>' : `<button class="text-button" data-action="accept" data-id="${esc(c[0])}">确认这条</button>`])))}
+      ${candidatesPanel()}
       <p class="small-note">冲突值、缺单位、非数字、把握度低都在读取时算，不落库；同一字段多个值会并排显示，由你选。</p>`;
   }
   if (sub === '病情档案') {
@@ -1166,12 +1300,16 @@ function setView(v) {
   state.view = v;
   state.flip = '';
   render();
-  $('#main').scrollIntoView({ block: 'start' });
+  /* 进入要有真实数据的两页时拉一次；同一档案只拉一次（loadedFor 判重） */
+  if (v === 'records') refreshImports();
+  const main = $('#main');
+  if (main && typeof main.scrollIntoView === 'function') main.scrollIntoView({ block: 'start' });
 }
 function setSub(s) {
   state.sub[state.view] = s;
   state.flip = '';
   render();
+  if (state.view === 'records') refreshImports();
 }
 
 document.addEventListener('click', (e) => {
@@ -1242,6 +1380,38 @@ document.addEventListener('click', (e) => {
   if (a === 'help') { helpDialog(); return; }
   if (a === 'close') { closeDialog(); return; }
   if (a === 'mock-upload') { toast('原型不上传真实文件；开发版会要求先选择资料目录'); return; }
+  if (a === 'refresh-cands') { refreshImports(true); return; }
+  if (a === 'parse-doc') {
+    /* 解析要几十秒：按钮先锁住，回来后整段刷新。失败时把服务端错误原文显示出来
+       （常见是 Token 失效 / 原件被移走），不吞成一句"解析失败"。 */
+    const id = el.dataset.id;
+    el.disabled = true;
+    const old = el.textContent;
+    el.textContent = '解析中…';
+    apiPost('/api/import/parse', { profileKey: state.profile, docId: id })
+      .then((j) => {
+        const n = (j.candidates || []).length;
+        toast(`解析完成：${n} 条候选${j.reportDate ? `，日期 ${j.reportDate}` : '，没识别到日期'}`);
+        if (j.warnings && j.warnings.length) console.warn('[import]', j.warnings);
+      })
+      .catch((err) => toast(`解析失败：${(err && err.message) || '未知原因'}`))
+      .finally(() => { el.disabled = false; el.textContent = old; refreshImports(true); });
+    return;
+  }
+  if (a === 'accept-cand' || a === 'reject-cand') {
+    const id = el.dataset.id;
+    const path = a === 'accept-cand' ? '/api/import/candidates/accept' : '/api/import/candidates/reject';
+    el.disabled = true;
+    apiPost(path, { profileKey: state.profile, id })
+      .then((j) => {
+        /* 接受后服务端把该档案的指标形状回给我们：直接换本地，不自己拼点 */
+        if (a === 'accept-cand' && j.metrics && PROFILES[state.profile]) PROFILES[state.profile].metrics = j.metrics;
+        toast(a === 'accept-cand' ? `已入档：${j.metricKey} ${j.value}（${j.d}）` : '已标为「不要」，记录留着');
+      })
+      .catch((err) => toast(err.field ? `${err.field}：${err.message}` : `操作失败：${err.message}`))
+      .finally(() => { el.disabled = false; refreshImports(true); });
+    return;
+  }
   if (a === 'accept') {
     el.textContent = '已接受';
     el.disabled = true;
@@ -1275,7 +1445,70 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDialo
 /* 血压录入：表单每次 render 都会重建，所以监听挂在 document 上做委托，
    不给 #bp-form 直接绑（绑了会随重渲染一起丢）。 */
 document.addEventListener('submit', (e) => {
-  const form = e.target.closest && e.target.closest('#bp-form');
+  const target = e.target;
+  /* 上传：body 就是文件字节（不套 multipart），文件名/日期/类型走 query。
+     服务端按（档案, sha256）去重，重复导入返回 duplicate=true，不新建文档。 */
+  const upForm = target.closest && target.closest('#upload-form');
+  if (upForm) {
+    e.preventDefault();
+    const f = new FormData(upForm);
+    const file = f.get('file');
+    if (!file || !file.name) { toast('先选一份文件'); return; }
+    const qs = new URLSearchParams({ profile: state.profile, name: file.name });
+    const date = String(f.get('date') || '').trim();
+    const type = String(f.get('type') || '').trim();
+    if (date) qs.set('date', date);
+    if (type) qs.set('type', type);
+    const btn = upForm.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = '上传中…'; }
+    let p;
+    try {
+      p = fetch(`${apiBase()}/api/import/upload?${qs.toString()}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/octet-stream' },
+        body: file,
+      });
+    } catch (err) { p = Promise.reject(err); }
+    Promise.resolve(p)
+      .then(async (r) => {
+        const j = await r.json().catch(() => null);
+        if (!r.ok) throw Object.assign(new Error((j && j.message) || `HTTP ${r.status}`), { code: j && j.error });
+        if (j.duplicate) toast('这份文件之前已经导入过（按文件指纹去重），没有新建第二份');
+        else toast(`已保存原件：${j.document.name}。下一步点「解析」。`);
+        upForm.reset();
+      })
+      .catch((err) => toast(err.code === 'no_workspace'
+        ? '还没有选择资料目录，原件没有地方放'
+        : `上传失败：${err.message}`))
+      .finally(() => {
+        if (btn) { btn.disabled = false; btn.textContent = '上传到资料目录'; }
+        refreshImports(true);
+      });
+    return;
+  }
+
+  /* 手填候选：只进候选层，与解析出来的候选同形，同样要逐项确认 */
+  const manForm = target.closest && target.closest('#manual-form');
+  if (manForm) {
+    e.preventDefault();
+    const f = new FormData(manForm);
+    const valueText = String(f.get('valueText') || '').trim();
+    if (!valueText) { toast('值不能为空'); return; }
+    const btn = manForm.querySelector('button[type="submit"]');
+    if (btn) btn.disabled = true;
+    apiPost('/api/import/candidates/manual', {
+      profileKey: state.profile,
+      metricKey: String(f.get('metricKey') || ''),
+      valueText,
+      unit: String(f.get('unit') || '').trim() || null,
+    })
+      .then(() => { manForm.reset(); toast('已加为候选，请在下面确认'); })
+      .catch((err) => toast(err.field ? `${err.field}：${err.message}` : `添加失败：${err.message}`))
+      .finally(() => { if (btn) btn.disabled = false; refreshImports(true); });
+    return;
+  }
+
+  const form = target.closest && target.closest('#bp-form');
   if (!form) return;
   e.preventDefault();
   const f = new FormData(form);

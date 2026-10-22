@@ -11,14 +11,16 @@ const fail = []
 const ok = []
 const read = (p) => readFileSync(`${ROOT}/${p}`, 'utf8')
 
-/* 1. 版本：VERSION = package.json = APP_INFO.version */
+/* 1. 版本：VERSION = package.json = 开发版 APP_INFO.version
+   （`prototypes/v0.2/app.js` 是 G1/G2 签认过的快照，冻结在 v0.1.0，不跟 VERSION 移动；
+     它与 VERSION 的关系由 check-version.mjs 单独盯，别在这里再比一次。） */
 const version = read('VERSION').trim()
 const pkg = JSON.parse(read('package.json'))
-const appInfo = read('prototypes/v0.2/app.js').match(/const APP_INFO = \{[\s\S]*?version: '([^']+)'/)
+const appInfo = read('public/app.js').match(/const APP_INFO = \{[\s\S]*?version: '([^']+)'/)
 if (!version) fail.push('VERSION 为空')
 if (pkg.version !== version) fail.push(`package.json ${pkg.version} ≠ VERSION ${version}`)
-if (!appInfo) fail.push('app.js 里找不到 APP_INFO.version')
-else if (appInfo[1] !== version) fail.push(`app.js APP_INFO ${appInfo[1]} ≠ VERSION ${version}`)
+if (!appInfo) fail.push('public/app.js 里找不到 APP_INFO.version')
+else if (appInfo[1] !== version) fail.push(`public/app.js APP_INFO ${appInfo[1]} ≠ VERSION ${version}`)
 ok.push(`版本一致：${version}`)
 
 /* 2. 冻结迁移：sha256 必须与 freeze-contract.md 记录一致 */
@@ -43,17 +45,21 @@ for (const t of targets) {
 }
 ok.push('文案红线：0 命中')
 
-/* 5. 表数：迁移必须仍是 28 张表（改数量要同步 SCHEMA.md 与 freeze-contract.md） */
+/* 5. 表数：全量迁移必须建出 29 张表（0001 的 28 张 + 0003 的 parse_jobs）。
+   改数量要同步 SCHEMA.md 与 freeze-contract.md。只跑 0001 会漏掉后续迁移的错误，
+   所以这里按文件名顺序把 schema/*.sql 全部执行一遍。 */
 try {
   const out = execFileSync(process.execPath, ['--disable-warning=ExperimentalWarning', '-e', `
     const {DatabaseSync}=require('node:sqlite');const fs=require('node:fs');
     const db=new DatabaseSync(':memory:');
-    db.exec(fs.readFileSync('${ROOT}/${sqlPath}','utf8'));
+    for (const f of fs.readdirSync('${ROOT}/schema').filter((n)=>n.endsWith('.sql')).sort()) {
+      db.exec(fs.readFileSync('${ROOT}/schema/'+f,'utf8'));
+    }
     const n=db.prepare("select count(*) c from sqlite_master where type='table' and name not like 'sqlite_%'").get().c;
     console.log(n);`], { encoding: 'utf8' })
   const n = Number(out.trim())
-  if (n !== 28) fail.push(`迁移建出 ${n} 张表，文档写 28 张`)
-  else ok.push('迁移可重放：28 张表')
+  if (n !== 29) fail.push(`全量迁移建出 ${n} 张表，文档写 29 张`)
+  else ok.push('迁移可重放：29 张表（0001 的 28 + 0003 的 parse_jobs）')
 } catch (e) {
   fail.push('迁移重放失败：' + e.message.split('\n')[0])
 }

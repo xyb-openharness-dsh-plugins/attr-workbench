@@ -2,7 +2,7 @@
 
 本机优先的 ATTR 型别确认、心脏与神经受累记录、治疗耐受与家族筛查准备工作台
 
-**当前状态：阶段 1 已交付、等用户确认**——12 个一级页的交互原型、28 张表的 schema、434 条临床试验登记摘录、9 份设计文档。尚未接入 DSH 宿主、未装机、未做真实文件解析。先看 [DEV-REQUIREMENTS-2026-10-21](docs/DEV-REQUIREMENTS-2026-10-21.md)（本轮硬约束）与 [DEV-PLAN](docs/DEV-PLAN.md)（里程碑）。初始化后先将 [项目设计提示词](docs/DESIGN-PROMPT.md) 交给当前Agent；它应展示实际路径并以已有用户/场景/流程素材对齐设计者、研究与取舍原则。癌种项目另有 [完整专用提示词](prompts/NEW-CANCER-WORKBENCH.md)。需求见 [BRIEF](docs/BRIEF.md)，规格见 [SPEC](docs/SPEC.md)，任务见 [TASKS](docs/TASKS.md)；先读 [AGENTS](AGENTS.md)。CLI输出交接与首问，实际对话由Agent接续。
+**当前状态：阶段 2 开发版可跑（M5 完成，v0.2.0）**——12 个一级页、29 张表的 schema（`0001` 28 张 + `0003` 的 `parse_jobs`）、434 条临床试验登记摘录、MinerU 上传→解析→逐项核对→入档全链路已用真实报告跑通。**尚未装机、闸口 G1–G3 等用户签认。** 先看 [DEV-REQUIREMENTS-2026-10-21](docs/DEV-REQUIREMENTS-2026-10-21.md)（本轮硬约束）与 [DEV-PLAN](docs/DEV-PLAN.md)（里程碑）。初始化后先将 [项目设计提示词](docs/DESIGN-PROMPT.md) 交给当前Agent；它应展示实际路径并以已有用户/场景/流程素材对齐设计者、研究与取舍原则。癌种项目另有 [完整专用提示词](prompts/NEW-CANCER-WORKBENCH.md)。需求见 [BRIEF](docs/BRIEF.md)，规格见 [SPEC](docs/SPEC.md)，任务见 [TASKS](docs/TASKS.md)；先读 [AGENTS](AGENTS.md)。CLI输出交接与首问，实际对话由Agent接续。
 
 ## 开发顺序
 
@@ -10,20 +10,22 @@
 
 ## 当前能力
 
-**已有（阶段 1，v0.1.0）**
+**已有（阶段 2 开发版，v0.2.0）**
 
-- 交互原型 `prototypes/v0.2/`：12 一级页 / 41 页签，可直接用 `python3 -m http.server` 打开，无需构建。
+- 运行版 `public/` + `dsh/`：`npm run dev` 起本地服务（`/api/health`、`/api/bootstrap`、`POST /api/bp`、`GET /api/export/summary`、`/api/import/*`），12 页读模型与原型逐字段 parity。
+- 交互原型 `prototypes/v0.2/`：12 一级页 / 41 页签，可直接用 `python3 -m http.server` 打开，无需构建（快照冻结在 v0.1.0，不随开发版改动）。
 - 演示档案 2 套（遗传型 / 野生型），来源唯一：`demo/build-demo-data.mjs`，同时产出 `demo-data.js` 与 `demo-data.sqlite`。
-- Schema `schema/0001_initial.sql`：28 张表，四条数据契约以 CHECK 落地，sha256 见 `schema/freeze-contract.md`。
+- Schema：`schema/0001_initial.sql` 28 张表 + `0003_import.sql` 的 `parse_jobs`（共 29 张），四条数据契约以 CHECK 落地，sha256 见 `schema/freeze-contract.md`。
 - 临床库 `research/attr/attr_trials_2026.sqlite`：434 条登记摘录，逐通道终态诚实标注（0 结果 ≠ 无试验）。
+- MinerU 链路：上传（按哈希去重）→ 云端解析（任务留历史、事务原子）→ 候选（只抄写不判断）→ 逐项确认才进指标层。规则与实测坑见 [18-MINERU-PARSING](docs/18-MINERU-PARSING.md)。
 - 设计文档：SPEC / PATIENT-FLOW / DIFF-MATRIX / CLINICAL-DATA-2026 / USER-RESEARCH / SCHEMA / HVT-REVIEW / DEV-PLAN。
 
-**没有（阶段 2–3）**
+**没有（阶段 3）**
 
-- 未接宿主：无 `dsh/server.js` 业务路由、无真实 SQLite 落库、未注册到 Desktop。
-- 未做解析：MinerU 链路、草稿核对落库、导出、四点位录入。
+- 未接 Desktop 宿主：未注册、未打包 `.tgz`、未做三层装机验收；`pinky:agent-draft` 的宿主侧监听端不在本仓库。
 - 未做访谈：H1–H5 五条假设全部标〔待访谈核实〕。
 - 未查 ChiCTR / WHO ICTRP；试验状态一律"未核实"。
+- 闸口 G1（需求）/ G2（原型）/ G3（数据模型）等用户签字，未签认前不发布。
 
 ## 开发与本地验收
 
