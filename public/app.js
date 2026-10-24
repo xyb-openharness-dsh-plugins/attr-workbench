@@ -11,12 +11,17 @@
    5) 版本号文本：bootstrap 返回 version/build 时同步到 #ver-chip / #app-version / #app-build。
    6) AI 面板从「布尔开合 + 写死像素」换成五态状态机 + 比例宽度（唯一来源 lib/layout.js，
       经 bootstrap 的 layout.agentPane 下发），分隔条可拖、可键盘调、宽度可记忆。
+   7) 0.4.0：新增「生活与照护 → 情绪与照护者」页签（40 → 41），数据只读 viewpoints；
+      「我的分型 → 确诊路径」底部补一张指南出处卡，整块用 <!--dev-only--> 包裹，
+      parity 测试据此摘除后仍与原型逐字符一致。
+      这两处属开发版先行：原型快照冻结在 v0.1.0（D37），原件不动，待原型下次升版合并回去。
+      照护者那一块**故意留空**并写明缺 caregiver_rows 表——不加表就不假装有，见页内说明。
    其余：12 个一级视图、41 个二级页签分流、一图秀引擎（单调三次插值 + 双纵轴 + 分类节点只画点）、
    3D 指标卡翻转、上传与候选核对、data-countup 数字滚动、prefers-reduced-motion 降级，
-   全部与原型一致。 */
+   除上面 1)–7) 外与原型一致。 */
 
 const APP_INFO = {
-  version: '0.3.1',
+  version: '0.4.0',
   build: '2026-10-21',
   channel: 'dev',
   channelLabel: '开发版 · 本机优先',
@@ -74,7 +79,7 @@ const SUBPAGES = {
   labs: ['心脏指标', '肾脏与电解质', '体重与血液', '影像与基因报告'],
   timeline: ['数值曲线', '事件与节点', '数据口径'],
   family: ['家系图', '级联筛查', '遗传咨询记录'],
-  life: ['饮食与体重', '活动与康复', '出行与资源'],
+  life: ['饮食与体重', '活动与康复', '情绪与照护者', '出行与资源'],
   review: ['复诊节奏', '就诊准备', '与医生讨论的问题'],
   trials: ['2026 线索', '已收藏', '入组问题']
 };
@@ -759,7 +764,20 @@ function viewSubtype(p, sub) {
           <p class="small-note">${esc(r ? (r[3] || '') + ' · ' + (r[4] || '') : '')}</p></div>`;
       }).join('')}</div>
       ${card('时间线', p.diagnosis.filter(d => d[3]).map(r => `<div class="row"><div><b>${esc(r[4] || '')}</b><p>${esc(r[5] || '')}</p></div><small>${esc(r[3])}</small></div>`).join(''))}
-      <p class="small-note">说明：PYP 阳性 + 轻链阴性在公开共识里被认为特异度很高，但是否确诊、是否需要心肌活检由医生决定；本页只呈现你记录的报告原文。</p>`;
+      <p class="small-note">说明：PYP 阳性 + 轻链阴性在公开共识里被认为特异度很高，但是否确诊、是否需要心肌活检由医生决定；本页只呈现你记录的报告原文。</p>
+      <!--dev-only-->
+      ${card('上面那句「公开共识」指的是这一份', `
+        <div class="row"><div>
+          <b>《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》</b>
+          <p>中华医学会心血管病学分会心力衰竭学组 · 中华心血管病杂志编辑委员会</p>
+          <p>中华心血管病杂志 2021;49(4):324-332 · DOI 10.3760/cma.j.cn112148-20201217-00993</p>
+          <p>位置：诊断 → 二、辅助检查 → 5. 放射性核素骨闪烁扫描术</p>
+        </div>${pill('卷期页已核', 'green')}</div>
+        <div class="row"><div><b>原文</b><p>「心肌摄取为 2 或 3 级同时血清/尿液中单克隆免疫球蛋白阴性，诊断 ATTR-CA 的特异度和阳性预测值均为 100%」</p></div></div>
+        <div class="row"><div><b>这个数最早来自哪</b><p>Gillmore JD, et al. Nonbiopsy diagnosis of cardiac transthyretin amyloidosis. Circulation 2016;133(24):2404-2412（n=1217，其中 374 例做了心肌活检）</p></div></div>
+        <div class="row"><div><b>另一套口径（并列放在这里，不换算、不取舍）</b><p>ASNC/AHA/ASE/EANM/HFSA/ISA/SCMR/SNMMI 2021 年补充说明把判据收紧为「断层图像显示弥漫 2–3 级摄取」，认为只看平面图像不够。J Nucl Cardiol 2021;28:1769-1774。</p></div>${pill('两套并列', 'violet')}</div>
+        <p class="small-note">只核到卷期页，小节起始页还没核到原件——核到之前，这条不算「能点回原文」，仍按待核看待。两套口径说的都是「扫描 + 血尿检查阴性可以少做一次活检」，不等于确诊；是否确诊、要不要做心肌活检由医生决定。</p>`)}
+      <!--/dev-only-->`;
   }
   return `${pageHead('会诊与二次意见', '把不同医院的说法并排放，不做取舍。', '')}
     ${emptyState('还没有会诊记录', '如果你在不同医院得到不同说法，可以把两边的原话都记下来，下次门诊一起看。')}
@@ -928,6 +946,26 @@ function viewLife(p, sub) {
     return `${pageHead('活动与康复', '记"实际走了多久、什么感觉"，不设运动处方。', '')}
       ${card('活动记录', table(['日期', '内容', '时长/距离', '感受'], p.daily.filter(d => d[1] === '活动').map(r => [esc(r[0]), esc(r[2]), esc(r[3]), esc(r[4] || '—')])))}
       <p class="small-note">活动耐量下降是心脏受累的常见表现；是否要限制活动、要不要做康复，由医生评估。</p>`;
+  }
+  if (sub === '情绪与照护者') {
+    /* 数据来源只有 viewpoints（d / mood / text / private）。这张表的成因是「我的看法」，
+       所以这里只摆原话，不做量表、不算分、不翻译成状态。照护者那一段故意留空：
+       29 张表里没有 caregiver_rows，daily_rows 的 kind 也写不进情绪（见页内说明）。 */
+    const vps = [...(p.viewpoints || [])].sort((a, b) => String(b[0]).localeCompare(String(a[0])));
+    return `${pageHead('情绪与照护者', '这一页只留你自己的话和照护安排；不打分、不判定，也不把它翻译成任何一种"状态"。', '')}
+      ${vps.length
+        ? card('你写下的', vps.map(v => `<div class="row"><div><b>${esc(v[1])}</b><p>${esc(v[2])}</p></div><small>${esc(v[0])}</small></div>`).join('') +
+          `<p class="small-note">这些文字只属于你：不进趋势、不进摘要事实区、不进导出（导出代码里没有这张表），也不自动进 AI 草稿。</p>`, { right: pill(`${vps.length} 条`, 'violet') })
+        : emptyState('还没有记录', '心情、担心的事、睡得好不好，都可以写在这里，一句也行。')}
+      ${card('三个常被记下来的时刻', `<div class="row"><div><b>确诊那天</b><p>听到名字的那一刻想说的话。</p></div></div>
+        <div class="row"><div><b>要跟家里人说之前</b><p>遗传型要先告诉兄弟姐妹或子女的时候。</p></div></div>
+        <div class="row"><div><b>复诊前一晚</b><p>排队、抽血、等结果那几天的感受。</p></div></div>
+        <p class="small-note">这三个时刻来自探索性访谈的待验证假设，不是医学标准；想记就记，没有「多久该记一次」这回事。</p>`)}
+      ${card('照护者', `<div class="help-box"><b>这一块还没有位置，先说清楚缺什么。</b><br>
+        缺的是一张 caregiver_rows 表：谁在照顾你 / 这一周最累的一件事 / 有没有人可以替手 / 你自己需要什么。<br>
+        现有 29 张表里没有它；daily_rows 的 kind 只允许「饮食 · 体重 · 活动 · 出行」四种，情绪写不进去——不是界面少画了一个按钮，是数据库会拒绝写入。<br>
+        要加这一块得新建 0004_*.sql 并重新确认范围。在那之前这里空着，不假装有。</div>`)}
+      <p class="small-note">情绪要不要用药、算不算焦虑抑郁、照护者要不要介入——这些都由医生和社工判断；工作台只负责把话留住，不替你解释它。</p>`;
   }
   return `${pageHead('出行与资源', '长途出行、报销、异地就医——这些具体问题最容易在诊室外卡住。', '')}
     ${card('出行记录', table(['日期', '内容', '时长', '备注'], p.daily.filter(d => d[1] === '出行').map(r => [esc(r[0]), esc(r[2]), esc(r[3]), esc(r[4] || '—')])))}

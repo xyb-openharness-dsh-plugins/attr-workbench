@@ -46,7 +46,11 @@
       const React = require('react')
       const h = React.createElement
 
-      const REPOSITORY = '__REPOSITORY__'
+      /* 仓库地址必须直接写在 register() 的描述符里，不经常量中转：
+         check-workbench-package 用正则静态读客户端，`repository: REPOSITORY` 这种
+         中转写法会被判成「Canonical repository required（manual review if dynamic）」，
+         让 npm run check 直接失败（2026-10-24 修，0.4.0 起）。
+         值仍由 scripts/build-client.mjs 从 package.json 注入，只有一份来源。 */
       const UI_ENTRY = '__UI_ENTRY__'
       const VERSION = '__VERSION__'
       const TITLE = '小甲宝'
@@ -462,7 +466,7 @@
           title: TITLE,
           panelTitle: PANEL_TITLE,
           icon: '🫀',
-          repository: REPOSITORY,
+          repository: '__REPOSITORY__',
           description: DESCRIPTION,
           audience: 'ATTR（转甲状腺素蛋白淀粉样变性）患者、家系成员与照护者',
           requirements: '本机数据整理；不做诊断与处置建议，判断由用户与其医疗团队做出。',

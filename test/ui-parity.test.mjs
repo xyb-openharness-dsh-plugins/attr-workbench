@@ -134,6 +134,13 @@ const WHITELIST = [
     name: '候选核对表（原型只读版 → 开发版可操作版）',
     reason: '原型候选表只读且无单位；开发版换成可操作列表，原型侧那张 card 整块摘除后比其余部分。',
     apply: (s) => s.replace(/[ \t\r\n]*<section class="card">\s*<div class="card-head">[\s\S]{0,200}?候选字段[\s\S]*?<\/section>/g, '')
+  },
+  {
+    /* 0.4.0 在「生活与照护」下新增一个页签。原型快照冻结在 v0.1.0（D37），不跟着长，
+       所以页签栏会多出一个按钮。只摘这一个按钮：其余任何字符变化仍会被抓到。 */
+    name: '新增页签：情绪与照护者',
+    reason: '原型冻结在 v0.1.0（D37）不新增页签；开发版页签栏多出的这一个按钮比对时摘除，页内三个区块走 ⑪ 单独断言。',
+    apply: (s) => s.replace(/<button role="tab" data-sub="情绪与照护者"[^>]*>情绪与照护者<\/button>/g, '')
   }
 ];
 const whitelistHits = new Map();
@@ -408,6 +415,38 @@ test('⑩ 原型导出在 shim 里不抛错，看板入口卡仍在', () => {
   setState(p3.T, { profile: 'A', view: 'dashboard', sub: null });
   assert.ok(p3.T.render() === undefined);
   assert.ok(renderMain(p3.T).includes('看两条线'), '看板入口卡仍在');
+});
+
+/* ⑪ 0.4.0 的两处「开发版先行」：原型冻结（D37）不跟着加，所以不能靠 ① 的逐字符比对兜住，
+   单独断言它们真的在、且该有的边界话都说到了。 */
+test('⑪ 开发版新增：情绪与照护者页签 + 确诊路径指南出处卡', () => {
+  // 1) 页签在，且排在「活动与康复」之后；原型快照里必须没有
+  assert.deepEqual(dev.T.SUBPAGES.life, ['饮食与体重', '活动与康复', '情绪与照护者', '出行与资源'],
+    '「生活与照护」的页签顺序变了');
+  assert.ok(!proto.T.SUBPAGES.life.includes('情绪与照护者'),
+    '原型快照不得新增页签（D37：UI 以 v0.1.0 原型为准，开发版先行）');
+
+  // 2) 三个区块都在；照护者那块要写明「缺哪张表」，不能编一个空表冒充
+  setState(dev.T, { profile: 'A', view: 'life', sub: '情绪与照护者' });
+  const html = renderMain(dev.T);
+  assert.ok(html.includes('你写下的'), '要渲染已记录的原话');
+  assert.ok(html.includes('三个常被记下来的时刻'), '要有「什么时候记」的提示区');
+  assert.ok(html.includes('caregiver_rows'), '缺表要写明缺哪一张，不能假装有');
+  assert.ok(html.includes('这一块还没有位置'), '照护者区要明确标注未引入');
+  assert.ok(!/量表|评分|得分|焦虑自评/.test(html), '心理页不许出现量表打分');
+  // 情绪记录必须来自 viewpoints（d / mood / text），页面里要能看到原话与日期
+  const vp = dev.T.PROFILES.A.viewpoints[0];
+  assert.ok(html.includes(vp[1]) && html.includes(vp[2]), `情绪记录应原样呈现，实际缺：${vp[1]}`);
+
+  // 3) 出处卡：机构 + 卷期页 + DOI 三样齐全，且整块带 dev-only 标记
+  setState(dev.T, { profile: 'A', view: 'subtype', sub: '确诊路径' });
+  const diag = renderMain(dev.T);
+  assert.ok(diag.includes('<!--dev-only-->') && diag.includes('<!--/dev-only-->'), '出处卡必须整块 dev-only 包裹');
+  assert.ok(diag.includes('中华医学会心血管病学分会心力衰竭学组'), '出处要写机构');
+  assert.ok(diag.includes('中华心血管病杂志 2021;49(4):324-332'), '出处要写卷期页');
+  assert.ok(diag.includes('10.3760/cma.j.cn112148-20201217-00993'), '出处要写 DOI');
+  assert.ok(diag.includes('两套并列'), '口径差异要并列标出，不做取舍');
+  assert.ok(!normalize(diag).includes('324-332'), '摘掉 dev-only 后不该残留出处卡（否则白名单放过了别的改动）');
 });
 
 test.after(() => {
