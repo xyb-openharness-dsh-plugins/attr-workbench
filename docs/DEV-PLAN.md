@@ -23,6 +23,7 @@
 | M6 | 装机 | Desktop Harness 活动 profile 安装；三层验收（配置层 / 加载层 / 交互层） | ✅ 2026-10-24（v0.2.3，`probe:install` 45 项全过，见 [RELEASE](RELEASE.md)） |
 | M7 | 发布 | 仓库 push + 市场描述 + LICENSE/NOTICE 复核 | ✅ 2026-10-24（push + tag `v0.2.3`；**市场投稿未授权，未提交**） |
 | M8 | 状态回填 | 组织 `BACKLOG.md` 对应行状态与版本同步（[§2.2 #80](https://github.com/xyb-openharness-dsh-plugins/.github/blob/main/BACKLOG.md)）；🟢 必须 V1+V2+V3 三层都过 | ⏳ 待执行（建议改 🔵 `v0.2.3`，真机确认后再 🟢） |
+| M9 | 回流闭环 | 从 CHANGELOG / LESSONS 抽出**可执行**的脚手架闸门（不是再写一篇文档）；新项目 `init` 后自动生效；有反向回归 | ✅ 2026-10-24（检查器四条装机面规则 + 6 条回归，横测 7 仓） |
 
 ---
 
@@ -117,6 +118,58 @@
 - `.github` 仓库走 PR（不直推 main），PR 描述里写清：仓库、版本、V1/V2/V3 各自证据（命令 + 输出摘要，或"未验证"）；
 - 合并后在 `docs/RELEASE.md` 的「动作」表补一行，记录 PR URL 与合并时间；
 - 达到 🟢 时同步 `ROADMAP.md`；**未达 🟢 不许说"已上架/已可用"**。
+
+## M9：把本轮教训回流成"机器闸门"（评估与实况）
+
+### 先评估：该不该有 M9
+
+**该有，但必须限定形态——只做可执行检查，不再产出一篇"经验总结"。** 判断依据三条，都不是感觉：
+
+1. **同一类漏项已经重复两次**。GBM 0.1.1 的三连踩之后写了 06 号「装机前宿主接线四要素」，并留下 ①–⑤ 的「待实施清单」；ATTR 这轮又踩了两条（包里少模块、静态资源被兜底），而四要素一条都罩不住。**文档型判据已经证明不够用**：它靠人记得去对照，而修复循环里人只会执行机器会红的东西。
+2. **本轮两条坑都能抽象成通用判据**，不是病种个案：`files` 白名单 vs 运行期相对 import 的落点、UI 子路径 vs 页面相对资源。两者都与"哪个病种"无关，只与"包结构"有关。
+3. **沉淀下来的东西必须能让下一个病种少踩一次**，否则就只是给这个仓写回忆录。所以验收标准定在「新项目 `init` 后自动生效」，而不是「文档里多一段」。
+
+### 做了什么（四条规则，都进 `npm run check`）
+
+| 规则 | 判据 | 抓的坑 | 形态 |
+| --- | --- | --- | --- |
+| ⑤ | `Config` 声明 `root` ⇒ patch 必须有 `config.root: !!js dshHomePath(...)` | 装机能开、重启回内存库 | error |
+| ⑥ | 运行期相对 `import`/`require` 的落点必须在 `files` 白名单内 | ATTR 0.2.1 `Cannot find module` | error |
+| ⑦ | 有 `public/` ⇒ 必须被 `files` 覆盖 | 业务区空白 | error |
+| ⑧ | UI 挂子路径 + 页面用相对资源 ⇒ 提示 | ATTR 0.2.2 `Unexpected token '<'` | **warn**（静态不可判定） |
+
+进口径：`scripts/check-workbench-package.mjs`（ATTR 与 starter 同一份，已同步），随 `init` 下发，`npm run check` 自动跑。
+
+### 关键一次返工：规则第一版误报肝癌
+
+⑤ 最初写成"patch 必须含 `config.root`"，横测七个仓立刻把肝癌判 fail——它**故意**用 `dbPath` 指向仓内演示库，不是漏接线。改成「**自己声明了 root 才要求注入**」后：肝癌恢复 pass，宫颈（`Config.root` 有、patch 没注入）被正确点名。
+
+这条返工本身是 LESSONS「禁止把个案推广为规则」的现场复现：**触发条件写宽一格，就会把别人的正确设计判成错误**。所以回归写成两半——必须报 4 条、必须不报 2 条（含 dbPath 型不点名）。
+
+### 横测结果（2026-10-24，七个仓）
+
+| 仓 | 结果 | 说明 |
+| --- | --- | --- |
+| attr（本仓） | pass | ⑧ 给 warn（本仓就是"UI 子路径 + 相对资源"，已修，warn 保留提醒） |
+| glioblastoma | pass | — |
+| liver-cancer | pass | 第一版误报，收窄后恢复 |
+| lung-cancer | pass | — |
+| ovarian | pass | — |
+| **cervical** | **fail** | `Config.root` 有、patch 无 `config.root` → 真实缺陷（重启回内存库） |
+| breast | fail | 既存问题（descriptor 缺 canonical repository / patch 非标准 shape），与本次新增规则无关 |
+
+### 没做的（如实挂账）
+
+- ⑧ 只能 warn：要判定得真启动静态层发一次 `GET /api/<slug>/ui/app.js` 看 content-type。
+- **装机副本探针还没模板化**：`scripts/probe-install.mjs` 目前只有本仓一份参考实现。下一步应把它变成 starter 的模板文件，让新项目天生带 `npm run probe:install`——那之后 ⑧ 可以由探针直接兜住，不必靠 warn。
+- LESSONS 里 ①②④（client 占位标记检查、pack 前 sha256 未变即报错、宿主注入形态冒烟）仍未实装。
+
+### 闭环判据（怎么算这一轮真的完）
+
+1. 新项目 `init` 后 `npm run check` 里就有这四条（不必回 starter 手动跑）；
+2. 反向回归存在且**两条负向都覆盖**（改坏会红、正确的设计不会被点名）；
+3. docs 四处同步：06 号（第 5/6 类失败 + 静态四条）、LESSONS（踩 5/踩 6 + 规则边界）、`prompts/ZERO-TO-DEV.md` 阶段 3 第 9–10 步、CHANGELOG；
+4. 本仓 `npm run check` 绿，且检查器版本与 starter 一致（`diff` 无输出）。
 
 ## 阶段 3 清单（M6 装机前）
 

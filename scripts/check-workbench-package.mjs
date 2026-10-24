@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Community static checker. Does not replace official validation, pack contents or Desktop UI tests.
-import { readFile, lstat, realpath } from 'node:fs/promises'
+import { readFile, readdir, lstat, realpath } from 'node:fs/promises'
 import { resolve, relative, sep } from 'node:path'
 const root = resolve(process.argv[2] || '.')
 const errors=[], warnings=[]
@@ -57,6 +57,86 @@ try {
   }
   if(/preserveAspectRatio\s*[:=]\s*['"]none['"]/.test(client)) warnings.push('Non-uniform SVG scaling found; manually review circles/text/chart geometry')
   if(/\.ownsSession\s*\(/.test(client)) warnings.push('Review service caller context and unavailable ownership; see docs/LESSONS.md')
+  /* ---------------- 装机面检查（2026-10-24 ATTR v0.2.1/0.2.2 两条装机坑回收） ----------------
+     这两条的共同点：dev-server 全绿、单测全绿，**只有装进宿主才炸**。
+     静态检查能拦住的是"包里少了东西"和"接线少了一行"，拦不住运行时路径推导。 */
+
+  // ⑤ Config 声明了 root，patch 就必须注入 config.root：漏了它装机能打开、每次重启回到内存库。
+  //    只对"自己声明了 root"的包生效——有的仓故意用 dbPath 指向仓内演示库（如肝癌），
+  //    那种包不该被这条判据点名（LESSONS「禁止把个案推广为规则」）。
+  const declaresRoot = /export\s+const\s+Config\s*=\s*Schema\.object\(\s*\{[\s\S]*?\broot\s*:/.test(server)
+  const injectsRoot = /root:\s*!!js\s+dshHomePath\(/.test(patch)
+  if (declaresRoot) {
+    check(injectsRoot, 'Config declares root but cordis.patch.yml has no config.root: !!js dshHomePath(...) — installs fine but resets to an in-memory DB on every restart')
+  } else if (injectsRoot) {
+    warnings.push('patch injects config.root but Config does not declare it: confirm the server actually reads config.root (otherwise the user data dir is silently unused)')
+  }
+
+  // ⑥ 运行期相对 import 的落点必须在 files 白名单里。漏一个模块 = 装机 import 失败
+  //    （ATTR 0.2.1：dsh/demo.js 引 ../demo/build-demo-data.mjs，而 files 没有 demo/）
+  const filesList = Array.isArray(p.files) ? p.files : []
+  const covered = (rel) => {
+    const norm = rel.replace(/^\.\//, '').split(sep).join('/')
+    return filesList.some((f) => {
+      const entry = f.replace(/^\.\//, '').replace(/\/$/, '')
+      return norm === entry || norm.startsWith(entry + '/')
+    })
+  }
+  const scanRoots = new Set()
+  for (const f of filesList) {
+    const entry = f.replace(/^\.\//, '').replace(/\/$/, '')
+    if (!entry.includes('*')) scanRoots.add(entry)
+  }
+  for (const entry of [p.main, p.exports?.['./client'], p.exports?.['./server']]) {
+    if (typeof entry === 'string') scanRoots.add(entry.replace(/^\.\//, ''))
+  }
+  const scanned = new Set()
+  const walk = async (dir) => {
+    let ents = []
+    try { ents = await readdir(resolve(root, dir), { withFileTypes: true }) } catch { return }
+    for (const ent of ents) {
+      const rel = (dir ? dir + '/' : '') + ent.name
+      if (ent.isDirectory()) {
+        if (!['node_modules', '.git', 'release', 'dist', 'coverage'].includes(ent.name)) await walk(rel)
+      } else if (/\.(?:m?js|cjs)$/.test(ent.name)) scanned.add(rel)
+    }
+  }
+  for (const entry of scanRoots) {
+    const abs = resolve(root, entry)
+    let stat = null
+    try { stat = await lstat(abs) } catch { continue }
+    if (stat.isDirectory()) await walk(entry.replace(/\/$/, ''))
+    else if (/\.(?:m?js|cjs)$/.test(entry)) scanned.add(entry)
+  }
+  const uncovered = new Set()
+  for (const rel of scanned) {
+    const src = await readFile(resolve(root, rel), 'utf8')
+    for (const m of src.matchAll(/(?:from\s*|import\s*\(\s*|require\s*\(\s*)['"](\.[^'"]+)['"]/g)) {
+      const target = relative(root, resolve(root, rel, '..', m[1])).split(sep).join('/')
+      if (target.startsWith('..')) continue
+      if (!covered(target)) uncovered.add(target + '  ← imported by ' + rel)
+    }
+  }
+  for (const item of uncovered) check(false, 'Runtime module not covered by files allowlist: ' + item)
+
+  // ⑦ public/ 存在就必须随包发出（漏了它装机后业务区空白）
+  try {
+    if ((await lstat(resolve(root, 'public'))).isDirectory() && covered('public/index.html') === false) {
+      check(false, 'public/ exists but is not covered by files allowlist')
+    }
+  } catch { /* 没有 public/ 的包不适用 */ }
+
+  // ⑧ UI 挂在子路径 + 页面用相对资源 = 服务端必须剥前缀。静态判定只能提示，真验靠装机探针
+  //    （ATTR 0.2.2：/api/attr/ui/app.js 被 SPA 兜底成 index.html，浏览器把 HTML 当 JS 解析）
+  try {
+    const html = await readFile(resolve(root, 'public/index.html'), 'utf8')
+    const uiOnSubPath = /['"`]\/?[^'"`]*\/ui\/[^'"`]*['"`]/.test(client)
+    const relativeRefs = /(?:src|href)="(?!https?:|data:|\.\.?\/|\/|#)([^"]+)"/.test(html)
+    if (uiOnSubPath && relativeRefs) {
+      warnings.push('UI 挂在子路径且页面使用相对资源引用：确认静态层会剥掉该前缀（漏剥 → 浏览器把 index.html 当 JS 解析、业务区空白）。真验方式：对装机副本跑一次装机探针，见 docs/06-VALIDATION-AND-RELEASE.md')
+    }
+  } catch { /* 没有 index.html 不适用 */ }
+
   warnings.push('Peer ranges, API signatures, credentials/assets, actual tgz contents and Desktop UI require separate verification')
   console.log(JSON.stringify({ package:p.name, version:p.version, staticPass:errors.length===0, errors, warnings },null,2))
   if(errors.length) process.exitCode=1
