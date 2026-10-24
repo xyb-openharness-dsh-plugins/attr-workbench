@@ -142,7 +142,7 @@ test('⑦ GET /api/export/summary：文本可取、家系不泄漏、404 给 JSO
     const j = await r.json();
     assert.ok(j.text.includes('陈志远'), '摘要应有档案信息');
     assert.ok(j.text.includes('不含私密家系信息'), '免责段必须在家系声明');
-    assert.deepEqual(j.excluded, ['family_rows', 'viewpoints']);
+    assert.deepEqual(j.excluded, ['family_rows', 'viewpoints', 'caregiver_rows']);
     const nf = await fetch(`${url}api/export/summary?profile=Z`);
     assert.equal(nf.status, 404);
     assert.equal((await nf.json()).error, 'profile_not_found');
@@ -156,4 +156,47 @@ test('⑧ 资料目录校验：主目录 / 桌面根 / /tmp 一律拒绝，正�
   assert.ok(validateWorkspacePath('/tmp').length > 0, '/tmp 应被拒绝');
   assert.ok(validateWorkspacePath('').length > 0, '空路径应被拒绝');
   assert.deepEqual(validateWorkspacePath(join(home, 'Documents', 'AttrWorkspace')), []);
+});
+
+/* 0.6.0：照护者记录走单独端点（不进 bootstrap）。这条同时盯着两件事：
+   - bootstrap 的 profiles 里**不能**多出 caregiver 键（原型冻结在 v0.1.0，parity 会红）；
+   - GET/POST 的形状与契约：7 位元组、写入后回读、校验失败 400 + 字段名。 */
+test('⑨ /api/caregiver：单独端点，不进 bootstrap；写入后回读整段', async () => {
+  await withServer(async ({ url }) => {
+    const boot = await (await fetch(`${url}api/bootstrap`)).json();
+    assert.equal(boot.profiles.A.caregiver, undefined, 'bootstrap 不得多出 caregiver 键（原型里没有这张表）');
+
+    const empty = await (await fetch(`${url}api/caregiver?profile=A`)).json();
+    assert.equal(empty.ok, true);
+    assert.deepEqual(empty.rows, [], '新库里还没有照护记录');
+
+    const r = await fetch(`${url}api/caregiver`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ profileKey: 'A', d: '2026-10-24', who: '女儿', relation: '子女', burden: '夜里起来三次' }),
+    });
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.equal(j.ok, true);
+    assert.equal(j.rows.length, 1, '应回传整段（含新写的那条）');
+    assert.deepEqual(j.rows[0], ['2026-10-24', '女儿', '子女', '夜里起来三次', null, null, 1],
+      '7 位元组：日期/谁/关系/最累/替手/需要/私密；没填的位存 null');
+
+    /* 只填日期：400 + 字段名，且不写入 */
+    const bad = await fetch(`${url}api/caregiver`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ profileKey: 'A', d: '2026-10-25' }),
+    });
+    assert.equal(bad.status, 400);
+    const bj = await bad.json();
+    assert.equal(bj.error, 'invalid');
+    assert.equal(bj.field, 'burden');
+    const after = await (await fetch(`${url}api/caregiver?profile=A`)).json();
+    assert.equal(after.rows.length, 1, '失败的那次不应写入');
+
+    const junk = await fetch(`${url}api/caregiver`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: 'not-json' });
+    assert.equal(junk.status, 400);
+    assert.equal((await junk.json()).error, 'bad_body');
+  });
 });

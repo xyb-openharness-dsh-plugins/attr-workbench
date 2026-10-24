@@ -15,16 +15,20 @@
       「我的分型 → 确诊路径」底部补一张指南出处卡，整块用 <!--dev-only--> 包裹，
       parity 测试据此摘除后仍与原型逐字符一致。
       这两处属开发版先行：原型快照冻结在 v0.1.0（D37），原件不动，待原型下次升版合并回去。
-      照护者那一块**故意留空**并写明缺 caregiver_rows 表——不加表就不假装有，见页内说明。
    8) 0.5.0：「治疗历程 → 当前方案」底部补第二张出处卡（治疗分类 / 已上市口径 / ATTR-ACT 数字），
       同样 <!--dev-only--> 包裹。卡里并列摆出一处口径冲突：共识写「2020 年 10 月」批准氯苯唑酸，
       而「出行与资源」写「2020-09」，两处都未核到批准文件，故并列待核、不自行择一。
+   9) 0.6.0：照护者那一块不再是空位。新建 schema/0004_caregiver.sql（第 30 张表），
+      记录位 + 录入表单接上 GET/POST /api/caregiver；数据**不进 bootstrap**
+      （bootstrap 的 profiles 必须与原型 demo-data.js 逐字段一致，见 test/store.test.mjs ③）。
+      只记照护这件事（谁在照顾你 / 这周最累的一件事 / 能不能替手 / 你需要什么），
+      不打分、不判定负担轻重。
    其余：12 个一级视图、41 个二级页签分流、一图秀引擎（单调三次插值 + 双纵轴 + 分类节点只画点）、
    3D 指标卡翻转、上传与候选核对、data-countup 数字滚动、prefers-reduced-motion 降级，
-   除上面 1)–7) 外与原型一致。 */
+   除上面 1)–9) 外与原型一致。 */
 
 const APP_INFO = {
-  version: '0.5.0',
+  version: '0.6.0',
   build: '2026-10-21',
   channel: 'dev',
   channelLabel: '开发版 · 本机优先',
@@ -203,6 +207,74 @@ function refreshImports(force = false) {
 
 function importBusy(message) {
   if (message) toast(message);
+}
+
+/* ---------------- 开发版新增：照护者记录（0004 / 0.6.0） ----------------
+   为什么单独取、不进 bootstrap：bootstrap 的 profiles 必须与原型 demo-data.js
+   逐字段一致（test/store.test.mjs ③ 是 deepStrictEqual），原型快照冻结在 v0.1.0，
+   里面没有 caregiver_rows——多一个键 parity 就红。做法与 /api/import/* 相同：
+   同一份库、同一个档案，给这块界面单独一个形状。
+
+   这一块只记「照护这件事」：谁在照顾你、这周最累的一件事、有没有人能替手、你自己需要什么。
+   不记照护者的身体、不算负担分数、不判定要不要请护工——那是医生和社工的判断。 */
+const CAREGIVER = { rows: [], loadedFor: '', loading: false, error: '' };
+
+function refreshCaregiver(force = false) {
+  const key = state.profile;
+  if (!force && (CAREGIVER.loading || CAREGIVER.loadedFor === key)) return Promise.resolve();
+  CAREGIVER.loading = true;
+  CAREGIVER.error = '';
+  return apiGet(`/api/caregiver?profile=${encodeURIComponent(key)}`)
+    .then((r) => {
+      /* 拉取期间换了档案：丢弃过期结果，别把 A 的照护记录画到 B 上 */
+      if (state.profile !== key) return;
+      CAREGIVER.rows = r.rows || [];
+      CAREGIVER.loadedFor = key;
+    })
+    .catch((err) => { CAREGIVER.error = (err && err.message) || '读取照护记录失败'; })
+    .finally(() => {
+      CAREGIVER.loading = false;
+      render();
+    });
+}
+
+/** 一条照护记录的展示：空着的格子写「没记」，不写「没有」（空 ≠ 阴性）。 */
+function caregiverRowHtml(r) {
+  const who = r[1] || r[2] || '未记称呼';
+  const rel = r[1] && r[2] ? `${esc(r[1])}（${esc(r[2])}）` : esc(who);
+  return `<div class="row"><div><b>${rel}</b>
+      <p>${r[3] ? esc(r[3]) : '<span class="muted">这周最累的一件事：没记</span>'}</p>
+      <p class="small-note">能不能替手：${r[4] ? esc(r[4]) : '没记'}　·　你需要什么：${r[5] ? esc(r[5]) : '没记'}</p></div>
+      <small>${esc(r[0])}</small></div>`;
+}
+
+/** 照护者录入表单。与血压表单同一套 dev-entry 样式；同样带 data-dev-only。 */
+function caregiverEntryForm() {
+  if (state.profile !== 'A' && state.profile !== 'B') return '';
+  return `<form class="dev-entry" data-dev-only id="caregiver-form" autocomplete="off">
+      <h3>记一条照护情况</h3>
+      <div class="dev-entry-row">
+        <label>日期<input type="date" name="d" required></label>
+        <label>谁在照顾你<input type="text" name="who" maxlength="30" placeholder="称呼即可，如：女儿；可不填"></label>
+        <label>关系<select name="relation">
+          <option value="">未记</option><option value="配偶">配偶</option><option value="子女">子女</option>
+          <option value="父母">父母</option><option value="兄弟姐妹">兄弟姐妹</option>
+          <option value="护工">护工</option><option value="其他">其他</option>
+        </select></label>
+        <label>能不能替手<select name="backup">
+          <option value="">没记</option><option value="有">有</option>
+          <option value="没有">没有</option><option value="不确定">不确定</option>
+        </select></label>
+      </div>
+      <div class="dev-entry-row">
+        <label class="grow">这一周最累的一件事<input type="text" name="burden" maxlength="200" placeholder="原话就行，如：夜里起来三次；可不填"></label>
+        <label class="grow">你自己需要什么<input type="text" name="need" maxlength="200" placeholder="如：想有人替我半天；可不填"></label>
+      </div>
+      <div class="dev-entry-foot">
+        <button class="primary" type="submit">记一条</button>
+        <span class="small-note">「能不能替手」空着存为「没记」，和明确选「没有」是两件事：前者是没写，后者是你写下的答案。</span>
+      </div>
+    </form>`;
 }
 
 function docStatusTone(status) {
@@ -966,10 +1038,12 @@ function viewLife(p, sub) {
       <p class="small-note">活动耐量下降是心脏受累的常见表现；是否要限制活动、要不要做康复，由医生评估。</p>`;
   }
   if (sub === '情绪与照护者') {
-    /* 数据来源只有 viewpoints（d / mood / text / private）。这张表的成因是「我的看法」，
-       所以这里只摆原话，不做量表、不算分、不翻译成状态。照护者那一段故意留空：
-       29 张表里没有 caregiver_rows，daily_rows 的 kind 也写不进情绪（见页内说明）。 */
+    /* 两块数据两个来源，都不做量表、不算分、不翻译成状态：
+       - 「你写下的」读 viewpoints（d / mood / text），跟着 bootstrap 一起来；
+       - 「照护者」读 0004 的 caregiver_rows，走 /api/caregiver 单独取（不挂 bootstrap，
+         否则 parity 会红）。按日期倒序：最近这一次排在最上面。 */
     const vps = [...(p.viewpoints || [])].sort((a, b) => String(b[0]).localeCompare(String(a[0])));
+    const cg = [...(CAREGIVER.rows || [])].sort((a, b) => String(b[0]).localeCompare(String(a[0])));
     return `${pageHead('情绪与照护者', '这一页只留你自己的话和照护安排；不打分、不判定，也不把它翻译成任何一种"状态"。', '')}
       ${vps.length
         ? card('你写下的', vps.map(v => `<div class="row"><div><b>${esc(v[1])}</b><p>${esc(v[2])}</p></div><small>${esc(v[0])}</small></div>`).join('') +
@@ -979,10 +1053,14 @@ function viewLife(p, sub) {
         <div class="row"><div><b>要跟家里人说之前</b><p>遗传型要先告诉兄弟姐妹或子女的时候。</p></div></div>
         <div class="row"><div><b>复诊前一晚</b><p>排队、抽血、等结果那几天的感受。</p></div></div>
         <p class="small-note">这三个时刻来自探索性访谈的待验证假设，不是医学标准；想记就记，没有「多久该记一次」这回事。</p>`)}
-      ${card('照护者', `<div class="help-box"><b>这一块还没有位置，先说清楚缺什么。</b><br>
-        缺的是一张 caregiver_rows 表：谁在照顾你 / 这一周最累的一件事 / 有没有人可以替手 / 你自己需要什么。<br>
-        现有 29 张表里没有它；daily_rows 的 kind 只允许「饮食 · 体重 · 活动 · 出行」四种，情绪写不进去——不是界面少画了一个按钮，是数据库会拒绝写入。<br>
-        要加这一块得新建 0004_*.sql 并重新确认范围。在那之前这里空着，不假装有。</div>`)}
+      ${card('照护者', `${CAREGIVER.error ? notice(`读取失败：${esc(CAREGIVER.error)}`, 'warn') : ''}
+        ${cg.length
+          ? cg.map(caregiverRowHtml).join('') +
+            `<p class="small-note">这些记录只属于你：不进趋势、不进门诊摘要（导出代码里没有这张表），也不自动进 AI 草稿。</p>`
+          : emptyState('还没有记录', '谁在照顾你、这周最累的一件事、有没有人能替手、你自己需要什么——想到哪句写哪句。')}
+        ${caregiverEntryForm()}
+        <p class="small-note">要不要请护工、照护安排该不该调整、照护者要不要正式支持（社工、喘息服务）——这些由医生和社工判断；工作台只把这段日子记下来，不替你评估负担轻重。</p>`,
+        cg.length ? { right: pill(`${cg.length} 条`, 'violet') } : {})}
       <p class="small-note">情绪要不要用药、算不算焦虑抑郁、照护者要不要介入——这些都由医生和社工判断；工作台只负责把话留住，不替你解释它。</p>`;
   }
   return `${pageHead('出行与资源', '长途出行、报销、异地就医——这些具体问题最容易在诊室外卡住。', '')}
@@ -1374,6 +1452,8 @@ function setView(v) {
   render();
   /* 进入要有真实数据的两页时拉一次；同一档案只拉一次（loadedFor 判重） */
   if (v === 'records') refreshImports();
+  /* 生活与照护：照护者记录要真实数据；同一档案只拉一次（loadedFor 判重） */
+  if (v === 'life') refreshCaregiver();
   const main = $('#main');
   if (main && typeof main.scrollIntoView === 'function') main.scrollIntoView({ block: 'start' });
 }
@@ -1382,6 +1462,7 @@ function setSub(s) {
   state.flip = '';
   render();
   if (state.view === 'records') refreshImports();
+  if (state.view === 'life' && s === '情绪与照护者') refreshCaregiver();
 }
 
 document.addEventListener('click', (e) => {
@@ -1577,6 +1658,42 @@ document.addEventListener('submit', (e) => {
       .then(() => { manForm.reset(); toast('已加为候选，请在下面确认'); })
       .catch((err) => toast(err.field ? `${err.field}：${err.message}` : `添加失败：${err.message}`))
       .finally(() => { if (btn) btn.disabled = false; refreshImports(true); });
+    return;
+  }
+
+  /* 照护者记录（0.6.0）：写入后立刻用服务端回读的整段替换本地数组，
+     前端不自己拼行——自己拼就会和读模型的列顺序错位（与血压那条同一条规矩）。 */
+  const cgForm = target.closest && target.closest('#caregiver-form');
+  if (cgForm) {
+    e.preventDefault();
+    const f = new FormData(cgForm);
+    const asText = (k) => { const v = f.get(k); return v === null ? null : String(v).trim(); };
+    const btn = cgForm.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+    apiPost('/api/caregiver', {
+      profileKey: state.profile,
+      d: asText('d'),
+      who: asText('who'),
+      relation: asText('relation'),
+      burden: asText('burden'),
+      backup: asText('backup'),
+      need: asText('need'),
+    })
+      .then((j) => {
+        CAREGIVER.rows = j.rows || [];
+        CAREGIVER.loadedFor = state.profile;
+        cgForm.reset();
+        render();
+        toast(`已记一条照护情况${j.row && j.row.d ? '：' + j.row.d : ''}`);
+      })
+      .catch((err) => {
+        toast(err.field ? `${err.field}：${err.message}` : (`保存失败：${err.message}`));
+        const input = err.field && cgForm.querySelector(`[name="${err.field}"]`);
+        if (input && typeof input.focus === 'function') input.focus();
+      })
+      .finally(() => {
+        if (btn) { btn.disabled = false; btn.textContent = '记一条'; }
+      });
     return;
   }
 

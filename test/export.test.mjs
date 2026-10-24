@@ -59,7 +59,7 @@ test('② H3：家系探针数据不出现在导出里（构造上排除，不�
   /* 确认探针确实写进库了——否则上面的断言是空转 */
   const fam = wb.db.prepare('SELECT COUNT(*) AS n FROM family_rows WHERE profile_key=?').get('A');
   assert.ok(fam.n >= 1, '探针应在库里（证明导出不是碰巧没数据）');
-  assert.deepEqual(j.excluded, ['family_rows', 'viewpoints'], '响应里要明示排除了哪两层');
+  assert.deepEqual(j.excluded, ['family_rows', 'viewpoints', 'caregiver_rows'], '响应里要明示排除了哪几层（家系 / 看法 / 照护）');
   wb.close();
 });
 

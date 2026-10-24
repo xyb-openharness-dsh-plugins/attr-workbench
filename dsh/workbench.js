@@ -14,8 +14,8 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { close, migrate, openDatabase } from './store.js';
 import { hasDemoData, seedDemo } from './demo.js';
-import { bootstrap, bpRows, getProfile, listSubjects } from './readmodels.js';
-import { addBpRow } from './writes.js';
+import { bootstrap, bpRows, caregiverRows, getProfile, listSubjects } from './readmodels.js';
+import { addBpRow, addCaregiverRow } from './writes.js';
 import { exportSummaryText } from './export.js';
 import { ImportService } from './import.js';
 import { workspaceProblems } from './server.js';
@@ -104,6 +104,26 @@ export class Workbench {
 
   /** 某个档案的血压记录（读模型形状：7 位元组数组，与原型一致）。 */
   bpRows(profileKey) { return bpRows(this.#db, profileKey); }
+
+  /**
+   * 写一条照护者记录（0004）。与 addBp 同一条事务边界：日后同一支写入要连带写
+   * 来源文档或候选状态时，不必回头改调用方。
+   */
+  addCaregiver(input) {
+    const db = this.#db;
+    db.exec('BEGIN');
+    try {
+      const row = addCaregiverRow(db, input);
+      db.exec('COMMIT');
+      return row;
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch { /* 回滚失败也要把原始错误抛出去 */ }
+      throw error;
+    }
+  }
+
+  /** 某个档案的照护者记录（7 位元组；不挂 bootstrap，理由见 readmodels.caregiverRows）。 */
+  caregiverRows(profileKey) { return caregiverRows(this.#db, profileKey); }
 
   /** 门诊摘要导出（家系与看法按构造排除，见 dsh/export.js 头注释）。 */
   exportSummary(profileKey) { return exportSummaryText(this.#db, profileKey); }

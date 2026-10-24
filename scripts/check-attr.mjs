@@ -45,7 +45,7 @@ for (const t of targets) {
 }
 ok.push('文案红线：0 命中')
 
-/* 5. 表数：全量迁移必须建出 29 张表（0001 的 28 张 + 0003 的 parse_jobs）。
+/* 5. 表数：全量迁移必须建出 30 张表（0001 的 28 张 + 0003 的 parse_jobs + 0004 的 caregiver_rows）。
    改数量要同步 SCHEMA.md 与 freeze-contract.md。只跑 0001 会漏掉后续迁移的错误，
    所以这里按文件名顺序把 schema/*.sql 全部执行一遍。 */
 try {
@@ -58,8 +58,8 @@ try {
     const n=db.prepare("select count(*) c from sqlite_master where type='table' and name not like 'sqlite_%'").get().c;
     console.log(n);`], { encoding: 'utf8' })
   const n = Number(out.trim())
-  if (n !== 29) fail.push(`全量迁移建出 ${n} 张表，文档写 29 张`)
-  else ok.push('迁移可重放：29 张表（0001 的 28 + 0003 的 parse_jobs）')
+  if (n !== 30) fail.push(`全量迁移建出 ${n} 张表，文档写 30 张`)
+  else ok.push('迁移可重放：30 张表（0001 的 28 + 0003 的 parse_jobs + 0004 的 caregiver_rows）')
 } catch (e) {
   fail.push('迁移重放失败：' + e.message.split('\n')[0])
 }

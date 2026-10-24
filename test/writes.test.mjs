@@ -108,3 +108,60 @@ test('⑥ addBpRow 直接调用（不经事务包装）也能用，且 ord 连�
   ]);
   wb.close();
 });
+
+/* ---------------- 0.6.0：照护者记录（0004_caregiver.sql） ----------------
+   这一层的四条契约在照护记录上的落点：
+   - 空 ≠ 阴性：`backup` 留空存 NULL；明确选「没有」才存「没有」——两者在库里必须能分开；
+   - 至少要有一样内容：只填日期的空行没有意义，界面会显示成"记了一条但什么都没说"；
+   - 只 INSERT：同一天写两条并存，不覆盖；
+   - 私密层：`private` 默认 1，与 family_rows 同口径；只接受 0/1。 */
+
+test('⑦ 照护者：留空存 NULL，明确选「没有」才存「没有」', async () => {
+  const wb = await fresh();
+  const a = wb.addCaregiver({ profileKey: 'A', d: '2026-10-24', who: '女儿', burden: '夜里起来三次' });
+  assert.equal(a.backup, null, '没填「能不能替手」应存 NULL，不是「没有」');
+  assert.equal(a.private, 1, 'private 默认 1（私密层）');
+
+  const b = wb.addCaregiver({ profileKey: 'A', d: '2026-10-25', who: '女儿', backup: '没有' });
+  assert.equal(b.backup, '没有', '用户明确选「没有」要原样保留');
+
+  const rows = wb.caregiverRows('A');
+  assert.equal(rows.length, 2, '两条都要在');
+  assert.equal(rows[0].length, 7, '元组应 7 位：日期/谁/关系/最累/替手/需要/私密');
+  assert.deepEqual(rows[0], ['2026-10-24', '女儿', null, '夜里起来三次', null, null, 1]);
+  assert.deepEqual(rows[1], ['2026-10-25', '女儿', null, null, '没有', null, 1]);
+  wb.close();
+});
+
+test('⑧ 照护者：只有日期没有内容 → 400 + 字段名，且不留下半条记录', async () => {
+  const wb = await fresh();
+  const before = wb.caregiverRows('A').length;
+  assert.throws(
+    () => wb.addCaregiver({ profileKey: 'A', d: '2026-10-26', who: '   ', burden: '—' }),
+    (e) => {
+      assert.ok(e instanceof ValidationError);
+      assert.equal(e.field, 'burden');
+      return true;
+    },
+  );
+  assert.equal(wb.caregiverRows('A').length, before, '校验失败不应写入（事务回滚）');
+  /* 日期与 private 的校验同样要带字段名 */
+  for (const [input, field] of [
+    [{ profileKey: 'A', d: '2026-13-01', who: '女儿' }, 'd'],
+    [{ profileKey: 'A', d: '2026-10-26', who: '女儿', private: 'true' }, 'private'],
+    [{ profileKey: 'NOPE', d: '2026-10-26', who: '女儿' }, 'profileKey'],
+  ]) {
+    assert.throws(() => wb.addCaregiver(input), (e) => e instanceof ValidationError && e.field === field,
+      `${JSON.stringify(input)} 的字段名应为 ${field}`);
+  }
+  wb.close();
+});
+
+test('⑨ 照护者：同一天写两条并存，不覆盖（更正只新增版本）', async () => {
+  const wb = await fresh();
+  const x = wb.addCaregiver({ profileKey: 'B', d: '2026-10-27', who: '配偶', burden: '陪着跑了两家医院' });
+  const y = wb.addCaregiver({ profileKey: 'B', d: '2026-10-27', who: '护工', burden: '白天在家' });
+  assert.equal(y.ord, x.ord + 1, 'ord 应递增，追加在末尾');
+  assert.equal(wb.caregiverRows('B').length, 2, '同日两条应并存');
+  wb.close();
+});

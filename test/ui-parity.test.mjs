@@ -426,13 +426,20 @@ test('⑪ 开发版新增：情绪与照护者页签 + 确诊路径指南出处�
   assert.ok(!proto.T.SUBPAGES.life.includes('情绪与照护者'),
     '原型快照不得新增页签（D37：UI 以 v0.1.0 原型为准，开发版先行）');
 
-  // 2) 三个区块都在；照护者那块要写明「缺哪张表」，不能编一个空表冒充
+  // 2) 三个区块都在；照护者那块 0.6.0 起是真记录位（不再是「故意留空」），要能看能记
   setState(dev.T, { profile: 'A', view: 'life', sub: '情绪与照护者' });
   const html = renderMain(dev.T);
   assert.ok(html.includes('你写下的'), '要渲染已记录的原话');
   assert.ok(html.includes('三个常被记下来的时刻'), '要有「什么时候记」的提示区');
-  assert.ok(html.includes('caregiver_rows'), '缺表要写明缺哪一张，不能假装有');
-  assert.ok(html.includes('这一块还没有位置'), '照护者区要明确标注未引入');
+  assert.ok(html.includes('照护者'), '照护者那一块要在');
+  assert.ok(!html.includes('这一块还没有位置'), '0.6.0 起照护者不再是空位：占位说明必须换掉');
+  assert.ok(html.includes('caregiver-form'), '照护者要有录入入口（GET/POST /api/caregiver）');
+  /* 没拉到数据时要如实写「还没有记录」，不能编一行假记录出来 */
+  assert.ok(html.includes('还没有记录'), '照护者空态要写「还没有记录」');
+  for (const name of ['d', 'who', 'relation', 'burden', 'backup', 'need']) {
+    assert.ok(html.includes(`name="${name}"`), `照护者表单缺字段 ${name}`);
+  }
+  assert.ok(html.includes('由医生和社工判断'), '照护安排该不该调整要交回医生与社工，不在这里给结论');
   assert.ok(!/量表|评分|得分|焦虑自评/.test(html), '心理页不许出现量表打分');
   // 情绪记录必须来自 viewpoints（d / mood / text），页面里要能看到原话与日期
   const vp = dev.T.PROFILES.A.viewpoints[0];

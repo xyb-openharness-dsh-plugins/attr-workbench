@@ -1,6 +1,6 @@
 # SCHEMA · ATTR 工作台数据模型
 
-日期：2026-10-22。权威文件：`schema/0001_initial.sql` + `schema/0002_rhythm_last.sql` + `schema/0003_import.sql`（结构）+ 本文件（语义与边界）。冻结后 sha256 落 `schema/freeze-contract.md`，**改结构只能新增 `0004_*.sql`**。
+日期：2026-10-22（2026-10-24 追加 0004）。权威文件：`schema/0001_initial.sql` + `schema/0002_rhythm_last.sql` + `schema/0003_import.sql` + `schema/0004_caregiver.sql`（结构）+ 本文件（语义与边界）。冻结后 sha256 落 `schema/freeze-contract.md`，**改结构只能新增 `0005_*.sql`**。
 
 ## 0. 四层事实（不合并，是契约不是风格）
 
@@ -49,6 +49,16 @@
 
 `0003` 同时扩了列（只增不改）：`documents` 补 `sha256/rel_path/pages`（按文件哈希去重、能找到原件、页数）；`candidate_fields` 补 `doc_id/metric_key/unit/value_num/value_text`（候选能追到来源文档、能带单位和数值、文本与数值互斥）。
 
+### 生活与照护（1 张，`0004_caregiver.sql`）
+
+| 表 | 说明 |
+| --- | --- |
+| `caregiver_rows` | 照护这件事：`d`（哪天）/ `who`（谁在照顾你，只记称呼）/ `relation` / `burden`（这一周最累的一件事）/ `backup`（有没有人可以替手）/ `need`（你自己需要什么）/ `private`（默认 1）/ `ord`。**不打分、不判定负担轻重**：没有"负担重/轻""要不要请护工"这类字段。`backup` 空 = 没记，明确选「没有」才存「没有」 |
+
+为什么不塞进已有的表：`daily_rows.kind` 的 CHECK 只允许「饮食 · 体重 · 活动 · 出行」，写不进照护；`viewpoints` 是一行一个心境片段，没有位置放"谁在照顾我、能不能替手"；`family_rows` 记的是家系成员的**检测状态**，不是每天的照护负担——三者都不能替代这张表。
+
+导出侧：`dsh/export.js` 是只读白名单，本表不在名单里，默认不进门诊摘要、不进 AI 草稿。
+
 ### ATTR 专属（14 张）
 
 | 表 | 语义 | ATTR 独有理由 |
@@ -67,7 +77,7 @@
 | `drug_rows` | 用药方案段：`name/mechanism/dose/start/end/status/reason` | 方案段可并行，不覆盖 |
 | `tolerance_rows` | 耐受事件：`d/kind/detail/action` | 停药原因的证据链 |
 | `family_rows` / `counsel_rows` | 家系成员（`private=1` 默认）与遗传咨询记录 | 最高敏感级，默认不进 AI 上下文 |
-| `daily_rows` | 饮食/体重/活动/出行记录 | 生活侧唯一入口（不设营养处方） |
+| `daily_rows` | 饮食/体重/活动/出行记录 | 生活侧日常记录（照护另见 `caregiver_rows`；不设营养处方） |
 
 ### 试验
 
@@ -84,7 +94,7 @@ subjects 1─n genotype_rows / phenotype_rows / stage_rows / diagnosis_rows
 subjects 1─n cardiac_rows / echo_rows / rhythm_events / bp_rows
 subjects 1─n neuro_rows / autonomic_rows / redflag_rows
 subjects 1─n drug_rows 1─n tolerance_rows
-subjects 1─n family_rows / counsel_rows / daily_rows
+subjects 1─n family_rows / counsel_rows / daily_rows / caregiver_rows
 ```
 
 没有跨档案外键：一个 `profile_key` 就是一份独立档案，家系成员**不是**第二个 `subjects` 行（未发病者没有病程数据，建档案会污染指标统计）。
@@ -99,6 +109,7 @@ subjects 1─n family_rows / counsel_rows / daily_rows
 | 更正型别 | 新增 `genotype_rows` 行（`revision_of` 指向旧行） | 旧行 `superseded=0 → 1` 由触发器维护，不删 |
 | 记录 PYP | `diagnosis_rows(step='pyp', state='done', finding='2 级')` | `state='not_done'` 时 `finding` 必须 NULL |
 | 家系成员 | `family_rows(private=1)` | 默认查询 `private=0` 才返回；导出需显式勾选 |
+| 照护记录 | `caregiver_rows(private=1)`，`backup` 留空即 NULL | 空 ≠ 「没有」：明确选「没有」才存「没有」；只 INSERT，不 UPDATE |
 | 指标 | `metric_points` 只写 `v_num` 或 `v_text` 之一 | CHECK 约束：两者不得同时非空 |
 | 试验收藏 | `trials` 存 `record_id` + 备注 | 不存疗效字段 |
 | 解析一次报告 | 新增 `parse_jobs` 行 + 候选写入 + `documents.status` 同事务 | 失败整体回滚：候选 0 条、原件保留、`job.status='failed'` 带错误码 |
@@ -109,7 +120,7 @@ subjects 1─n family_rows / counsel_rows / daily_rows
 
 | 变更 | 必须同步 | 不许怎样 |
 | --- | --- | --- |
-| 加表/加列 | 新增 `0004_*.sql`（下一个序号）+ `docs/SCHEMA.md` §1 + `demo/build-demo-data.mjs` + 读模型 + `schema/freeze-contract.md` 追加哈希 | 改已冻结的 0001/0002/0003；只改 SQL 不改生成器 |
+| 加表/加列 | 新增 `0005_*.sql`（下一个序号）+ `docs/SCHEMA.md` §1 + `demo/build-demo-data.mjs` + 读模型 + `schema/freeze-contract.md` 追加哈希 | 改已冻结的 0001/0002/0003/0004；只改 SQL 不改生成器 |
 | 改指标口径（如 hgb 单位） | `metrics` 种子 + `docs/CLINICAL-DATA-2026.md` + 页面文案 | 在渲染层换算 |
 | 改分期规则 | **不改代码**，只改"医生给出"的记录位 | 在任何地方自动算 Gillmore 分期 |
 | 加一级页 | `SPEC.md` §3/§4 + `DIFF-MATRIX.md` + `app.js` PAGES + 无头页签穷举 | 只加页面不加场景 |

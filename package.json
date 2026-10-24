@@ -1,6 +1,6 @@
 {
   "name": "@xyb-community/attr-workbench",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "本机优先的 ATTR 型别确认、心脏与神经受累记录、治疗耐受与家族筛查准备工作台",
   "private": true,
   "type": "module",

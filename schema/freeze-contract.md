@@ -9,9 +9,10 @@
 | `0001_initial.sql` | ed53b00aaa793601a8bd7e0f773884ff692446e98d141bc2e9b563062a1875b7 | 28 张表、全部 CHECK、全部索引。**只读** |
 | `0002_rhythm_last.sql` | 3ba4ca68a32513d367ff81ab84854017ecb2992173ab0438b3b531522296ed6d | 给 `rhythm` 补 `last TEXT` 一列，见下节。**只读** |
 | `0003_import.sql` | 911d76a76fa466e3244eb1c67bf3a4f7a1abcfdae1e267785bd8006bfcb75162 | 导入链路：新建 `parse_jobs`；`documents` 补 `sha256`/`rel_path`/`pages`；`candidate_fields` 补 `doc_id`/`metric_key`/`unit`/`value_num`/`value_text`。只加列，无 NOT NULL、无默认值。**只读** |
+| `0004_caregiver.sql` | bacf5ce3c5e5908ab0e8c450b64ff4d7a0cafa6d8ac55df3c55108ebc0e8ea9e | 照护者记录：新建 `caregiver_rows`（`profile_key/d/who/relation/burden/backup/need/private/ord`，除 `private` 默认 1 外全部可空无默认值）。没有 ALTER，不动任何已冻结的表。**只读** |
 
 表格由 `scripts/check-schema.mjs` 逐文件比对（正则只认纯文件名，别写成 `schema/0001_*.sql`）。
-已执行迁移：以上三个。`0004_*` 及以后继续按"只增不改"追加。
+已执行迁移：以上四个。`0005_*` 及以后继续按"只增不改"追加。
 
 ## 0002_rhythm_last.sql 是什么、为什么加
 
@@ -19,6 +20,23 @@
 而原型的 `rhythmRows` 是五位元组 `[项目, 频率, 依据, 上次, 下次]`——生成器当时把 `r[4] ?? r[3]`
 写进 `next`，「上次」这一位被丢掉，读模型只能还原四位，与 `prototypes/v0.2/demo-data.js` 的
 parity 断言（`test/store.test.mjs` ③）当场红。加列不改 0001，是这条契约的标准动作。
+
+## 0004_caregiver.sql 是什么、为什么加
+
+0.4.0 在「生活与照护 → 情绪与照护者」里留了一块空位，页面上写明「现有 29 张表里没有它」；
+0004 就是把那块空位补上：新建 `caregiver_rows`，记谁在照顾你、这一周最累的一件事、
+有没有人可以替手、你自己需要什么，另带 `private`（默认 1，与 `family_rows` 同口径）。
+
+为什么必须新开一张表，而不是往已有表里塞：
+
+- `daily_rows.kind` 的 CHECK 只允许「饮食 · 体重 · 活动 · 出行」，写不进照护；放宽这个 CHECK
+  等于改 0001 的字节，违反下面第 1 条。
+- `viewpoints` 是「我的看法」，一行一个心境片段，没有位置放"谁在照顾我、能不能替手"。
+- `family_rows` 记的是家系成员的**检测状态**（是否携带变异），不是每天的照护负担——
+  两者会提到同一个人，但是两件事。
+
+导出侧不需要额外动作：`dsh/export.js` 是只读白名单，这张表不在白名单里，
+所以默认不进门诊摘要，也不进 AI 草稿。
 
 ## 冻结的含义（三条，缺一不可）
 
@@ -45,7 +63,9 @@ parity 断言（`test/store.test.mjs` ③）当场红。加列不改 0001，是�
 
 以上四条都会直接破坏 `docs/SCHEMA.md` 里写的四条契约中的某一条。
 
-## 附：表清单（28）
+## 附：表清单
+
+`0001_initial.sql` 建出 28 张：
 
 `subjects` / `phenotype_rows` / `stage_rows` / `genotype_rows` / `diagnosis_rows` /
 `cardiac_rows` / `echo_rows` / `rhythm` / `rhythm_events` / `bp_rows` /
@@ -55,12 +75,17 @@ parity 断言（`test/store.test.mjs` ③）当场红。加列不改 0001，是�
 `documents` / `candidate_fields` / `metric_groups` / `metrics` / `metric_points` /
 `viewpoints` / `trials` / `demo_meta`
 
+后续迁移各加一张，合计 **30 张**（`scripts/check-attr.mjs` 的断言数就是 30）：
+
+- `0003_import.sql` → `parse_jobs`（第 29 张）
+- `0004_caregiver.sql` → `caregiver_rows`（第 30 张）
+
 ## 附：演示库一致性（同一份来源）
 
 | 产物 | 大小 | 说明 |
 | --- | --- | --- |
-| `prototypes/v0.2/demo-data.js` | 29,670 B | 原型直接加载 |
-| `demo/demo-data.sqlite` | 180,224 B | schema 校验用，逐表与 js 对齐 |
-| 生成脚本 | `demo/build-demo-data.mjs` | 唯一来源，sha256 前缀 `c3e082324511a85f` |
+| `prototypes/v0.2/demo-data.js` | 23,579 B | 原型直接加载 |
+| `demo/demo-data.sqlite` | 196,608 B | schema 校验用，逐表与 js 对齐（0004 后多一张空表 `caregiver_rows`） |
+| 生成脚本 | `demo/build-demo-data.mjs` | 唯一来源，sha256 前缀 `b28dea1765a5d458` |
 
 改演示数据只能改脚本再重新生成；不许手改 `demo-data.js`。

@@ -5,8 +5,9 @@
  * 背景：这两处不进 parity 的逐字符比对（原型快照冻结在 v0.1.0，D37 不跟着长），
  * 单测只能证明字符串在，证明不了「在真浏览器里能点开、不溢出、不报错」。
  * 所以这里用真 Chrome 点一遍：
- *   1. 生活与照护 → 情绪与照护者：三个区块都在，情绪记录是 viewpoints 的原话，
- *      照护者那块写明缺 caregiver_rows（不假装有）；
+ *   1. 生活与照护 → 情绪与照护者：三个区块都在，情绪记录是 viewpoints 的原话；
+ *      照护者那块 0.6.0 起是真记录位——这里**真填一张表提交**，再断言新行回到页面上
+ *      （单测只能证明接口通，证明不了「表单接上了接口、写完界面会刷新」）；
  *   2. 我的分型 → 确诊路径：指南出处卡在，机构 / 卷期页 / DOI / 口径差异四样齐全。
  * 判定：console 无错误、无横向溢出、无竖排单字、无内容被裁。
  *
@@ -96,12 +97,38 @@ try {
   const must = [
     ['你写下的', '情绪记录区'],
     ['三个常被记下来的时刻', '记录时机提示'],
-    ['这一块还没有位置', '照护者未引入说明'],
-    ['caregiver_rows', '缺哪张表要写明'],
+    ['caregiver-form', '照护者录入表单（0.6.0 起不再是空位）'],
+    ['还没有记录', '照护者空态要如实写「还没有记录」'],
+    ['由医生和社工判断', '照护安排该不该调整要交回医生与社工'],
     ['不进导出', '隐私去向要交代']
   ]
   for (const [needle, why] of must) if (!html.includes(needle)) problems.push(`情绪页缺「${needle}」（${why}）`)
+  if (html.includes('这一块还没有位置')) problems.push('0.6.0 起照护者不该再是空位，占位说明没换掉')
   if (/量表|评分|得分/.test(html)) problems.push('情绪页出现了量表/评分字样——那是第③层判断，不该有')
+
+  /* 真写一条：填表 → 提交 → 等回读 → 断言新行出现在页面上。
+     单测能证明接口通，这里证明「表单真的接上了接口、写完之后界面真的会刷新」。 */
+  const filled = await cdp.eval(`(() => {
+    const f = document.querySelector('#caregiver-form');
+    if (!f) return 'no-form';
+    const set = (n, v) => { const el = f.querySelector('[name="' + n + '"]'); if (el) el.value = v; };
+    set('d', '2026-10-24'); set('who', '女儿'); set('relation', '子女');
+    set('burden', '夜里起来三次'); set('backup', '没有'); set('need', '想有人替我半天');
+    f.querySelector('button[type="submit"]').click();
+    return 'ok';
+  })()`)
+  if (filled !== 'ok') problems.push(`照护者表单填不进去：${filled}`)
+  else {
+    let after = ''
+    for (let i = 0; i < 40; i += 1) {
+      await sleep(120)
+      after = (await cdp.eval(`document.querySelector('#main').innerHTML`)) || ''
+      if (after.includes('夜里起来三次')) break
+    }
+    if (!after.includes('夜里起来三次')) problems.push('提交后新记录的「最累的一件事」没出现在页面上（写进去了但界面没回读？）')
+    if (!after.includes('1 条')) problems.push('提交后没有「共几条」计数（pill 没更新？）')
+    if (after.includes('还没有记录')) problems.push('已经有 1 条记录了，空态却还在')
+  }
 
   for (const width of WIDTHS) {
     for (const tz of FONTS) {
@@ -121,7 +148,7 @@ try {
   await cdp.eval(`document.documentElement.style.setProperty('--tz', 1)`)
   await sleep(200)
   const shot1 = await cdp.send('Page.captureScreenshot', { format: 'png' })
-  writeFileSync(join(SHOTS, 'v0.4.0-mind-caregiver.png'), Buffer.from(shot1.data, 'base64'))
+  writeFileSync(join(SHOTS, 'v0.6.0-caregiver-record.png'), Buffer.from(shot1.data, 'base64'))
 
   /* ---------- 2. 确诊路径出处卡 ---------- */
   if (!(await clickView('subtype'))) problems.push('找不到「我的分型」导航按钮')

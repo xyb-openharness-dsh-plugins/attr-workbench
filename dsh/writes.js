@@ -118,3 +118,48 @@ export function addBpRow(db, input = {}) {
 
   return { profileKey, d, position, sys, dia, pulse, symptom, drug_note: drugNote, ord };
 }
+
+/**
+ * 写一条照护者记录（0004 的 caregiver_rows）。
+ *
+ * 这一行记的是**照护这件事**，不是照护者的身体：谁在照顾你、这一周最累的一件事、
+ * 有没有人可以替手、你自己需要什么。四条契约在这里的落地：
+ * - 看法恒不为结论：没有"负担过重""需要干预"这类字段，页面上也不生成这种话；
+ * - 空 ≠ 阴性：`backup` 空着就是"没记"，不写成「没有」；用户真写了「没有」才存「没有」；
+ * - 更正只新增版本：只有 INSERT；
+ * - 事实四层不合并：不往 `family_rows` 塞（那张表记的是家系成员的检测状态），
+ *   也不往 `daily_rows` 塞（`kind` 的 CHECK 里没有「照护」，硬塞要被库拒绝）。
+ *
+ * 至少要有一样内容：只填一个日期的空行没有意义，界面也会显示成"记了一条但什么都没说"。
+ * 不校验 `relation` 的取值：照护者可能是护工、邻居、同事，写死枚举会把真实情况挡在外面。
+ */
+export function addCaregiverRow(db, input = {}) {
+  const profileKey = assertProfile(db, input.profileKey);
+  const d = requireDate(input.d, 'd');
+
+  const who = cleanText(input.who, 'who', 30);
+  const relation = cleanText(input.relation, 'relation', 20);
+  const burden = cleanText(input.burden, 'burden', 200);
+  const backup = cleanText(input.backup, 'backup', 30);
+  const need = cleanText(input.need, 'need', 200);
+
+  if (!who && !burden && !backup && !need) {
+    throw new ValidationError('burden', '至少写下一样：谁在照顾你、这周最累的一件事、有没有人能替手、你需要什么');
+  }
+
+  /* private 默认 1（照护安排属私密层，与 family_rows 同口径）。只接受 0/1，
+     不接受 'true'/'false'：布尔在库里就是整数，模糊值到导出时才炸。 */
+  let priv = 1;
+  if (input.private !== null && input.private !== undefined && String(input.private).trim() !== '') {
+    const v = String(input.private).trim();
+    if (!['0', '1'].includes(v)) throw new ValidationError('private', `private 只能是 0 或 1，收到 ${v}`);
+    priv = Number(v);
+  }
+
+  const ord = nextOrd(db, 'caregiver_rows', profileKey);
+  db.prepare(
+    'INSERT INTO caregiver_rows (profile_key,d,who,relation,burden,backup,need,private,ord) VALUES (?,?,?,?,?,?,?,?,?)'
+  ).run(profileKey, d, who, relation, burden, backup, need, priv, ord);
+
+  return { profileKey, d, who, relation, burden, backup, need, private: priv, ord };
+}

@@ -1,5 +1,61 @@
 # CHANGELOG
 
+## 0.6.0 — 2026-10-24（照护者那块补上了：第 30 张表）
+
+0.4.0 留的那块空位，页面上写着「现有 29 张表里没有它，要加得新建 `0004_*.sql`」。
+维护者一句「G1通过，可以推进后续开发」授权推进，本轮把它补上。
+
+### 新增
+
+- **`schema/0004_caregiver.sql`**：新建 `caregiver_rows`
+  （`profile_key / d / who / relation / burden / backup / need / private / ord`）。
+  除 `private` 默认 1 外全部可空、无默认值；**没有任何 ALTER**，不动已冻结的 0001/0002/0003。
+- **`GET /api/caregiver?profile=A`** 与 **`POST /api/caregiver`**：7 位元组返回，
+  写入后回读整段（前端不自己拼行，避免与读模型列顺序错位）。
+- **写入层 `addCaregiverRow`**：日期必填；`who/burden/backup/need` 至少一样，
+  否则 400 + 字段名 `burden`（只填日期的空行没有意义）；`private` 只接受 0/1。
+- **界面**：`生活与照护 → 情绪与照护者` 的「照护者」卡从"空位说明"换成真记录位——
+  一条一条按日期倒序列出，右上一个「共几条」，下面一张录入表单。
+
+### 为什么单独一张表、单独一个接口
+
+- 不塞 `daily_rows`：`kind` 的 CHECK 只允许「饮食 · 体重 · 活动 · 出行」，写不进照护；
+  放宽 CHECK 就是改 0001 的字节（冻结第一条）。
+- 不塞 `viewpoints`：那是一行一个心境片段，没有位置放"谁在照顾我、能不能替手"。
+- 不塞 `family_rows`：那张表记的是家系成员的**检测状态**，不是每天的照护负担。
+- **不进 bootstrap**：bootstrap 的 profiles 必须与原型 `demo-data.js` 逐字段
+  `deepStrictEqual`（`test/store.test.mjs` ③），原型快照冻结在 v0.1.0，多一个键 parity 就红。
+  与 `/api/import/*` 同一个做法：同一份库，不同界面给不同形状。
+
+### 口径
+
+- **空 ≠ 阴性**：「能不能替手」留空存 NULL（没记）；明确选「没有」才存「没有」。
+  界面上两者显示不同（`没记` / `没有`），测试 ⑦ 盯死这一条。
+- **不打分、不判定**：没有"负担重/轻""要不要请护工"这类字段；页面出口是
+  「由医生和社工判断」。
+- **导出按构造排除**：`dsh/export.js` 是只读白名单，`caregiver_rows` 不在名单里；
+  `excluded` 元数据从两层扩到三层（`family_rows / viewpoints / caregiver_rows`）。
+
+### 关于「原型没动」
+
+`prototypes/v0.2/` 一行未改（D37 冻结在 v0.1.0）。新增的表与卡片都只在开发版；
+`test/ui-parity.test.mjs` ① 仍逐字符比对，⑪ 补了照护者的断言
+（表单在、空态如实、字段齐、出口回医生与社工、且**不许**再出现「这一块还没有位置」）。
+
+### 验证
+
+- `NODE_OPTIONS= npm run check` → 全部通过，退出码 0（93 条单测）。
+  其中新增：`writes.test` ⑦⑧⑨（空≠阴性 / 校验失败不留半条 / 同日并存）、
+  `server.test` ⑨（单独端点、bootstrap 不得多出 caregiver 键、写入回读、400 带字段名）。
+- `npm run probe:mind` → 真 Chrome 点开「情绪与照护者」，**填表提交一条**，
+  断言新记录回到页面上（`夜里起来三次` + 「1 条」+ 空态消失）；
+  4 宽度 × 3 字号无横向溢出、无竖排单字、无内容被裁；console 0 错误。
+  截图 `docs/screenshots/v0.6.0-caregiver-record.png`。
+- 表数断言 `scripts/check-attr.mjs` 29 → 30，同步 `docs/SCHEMA.md`、`schema/freeze-contract.md`
+  （含新迁移 sha256 `bacf5ce3…`）。
+
+---
+
 ## 0.5.0 — 2026-10-24（治疗那半句指南也接上了）
 
 0.4.0 只补了**确诊**的出处；维护者原话要的是「确诊、治疗指南」，治疗那半句还没落地。本轮补上。

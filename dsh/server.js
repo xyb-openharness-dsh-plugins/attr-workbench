@@ -220,6 +220,38 @@ export function createHandler({ workbench, prefix = '' }) {
       }
     }
 
+    /* 照护者记录（0004）：单独端点，不并进 bootstrap。
+       bootstrap 的 profiles 必须与原型 demo-data.js 逐字段一致（store.test ③），
+       原型里没有这张表，多一个键就红——与 /api/import/* 同一个处理方式。 */
+    if (req.method === 'GET' && path === '/api/caregiver') {
+      const profileKey = url.searchParams.get('profile') || 'A';
+      try {
+        return json(200, { ok: true, rows: workbench.caregiverRows(profileKey) });
+      } catch (error) {
+        return json(500, { error: 'read_failed', message: error.message });
+      }
+    }
+
+    /* 写入：照护者。校验失败同样是 400 + 字段名，界面据此定位输入框。 */
+    if (req.method === 'POST' && path === '/api/caregiver') {
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch (error) {
+        return json(error.statusCode || 400, { error: 'bad_body', message: error.message });
+      }
+      try {
+        const row = workbench.addCaregiver(body);
+        /* 写入后立刻回读，前端不自己拼行（自己拼就会和读模型的列顺序错位） */
+        return json(200, { ok: true, row, rows: workbench.caregiverRows(row.profileKey) });
+      } catch (error) {
+        if (error && error.name === 'ValidationError') {
+          return json(400, { error: 'invalid', field: error.field, message: error.message });
+        }
+        return json(500, { error: 'write_failed', message: error.message });
+      }
+    }
+
     /* 导出：门诊摘要。家系与看法在 export.js 里按构造排除（只读白名单表）。 */
     if (req.method === 'GET' && path === '/api/export/summary') {
       const profileKey = url.searchParams.get('profile') || 'A';

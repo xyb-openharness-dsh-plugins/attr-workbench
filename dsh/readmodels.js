@@ -144,6 +144,19 @@ export function bpRows(db, key) {
     .map((r) => [r.d, r.position, r.sys, r.dia, r.pulse, r.symptom, r.drug_note]);
 }
 
+/**
+ * 某个档案的照护者记录（7 位元组：日期 / 谁 / 关系 / 最累的一件事 / 能不能替手 / 需要什么 / 私密）。
+ *
+ * 为什么**不**挂进 `readProfile()`：bootstrap 的 profiles 必须与 `prototypes/v0.2/demo-data.js`
+ * 逐字段 deepStrictEqual（test/store.test.mjs ③），而原型快照冻结在 v0.1.0（D37），
+ * 里面没有这张表——多一个键，parity 当场红。所以照护者走单独端点，与 `/api/import/*`
+ * 同一个做法：同一份库，不同界面给不同形状，不是两套口径。
+ */
+export function caregiverRows(db, key) {
+  return rows(db, 'SELECT d, who, relation, burden, backup, need, private FROM caregiver_rows WHERE profile_key = ? ORDER BY ord', key)
+    .map((r) => [r.d, r.who, r.relation, r.burden, r.backup, r.need, r.private]);
+}
+
 /** 演示元信息（时间窗等）：前端 `D.meta` 直接用它，形状与 demo-data.js 的 meta 一致。 */
 function readDemoMeta(db) {
   const meta = {};

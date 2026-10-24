@@ -3,10 +3,10 @@
  * 契约（三条，写在构造里，不靠调用方自觉）：
  * 1. **复制出去的文字与你看到的一致**：文本与「病情汇总」页同源同序——同一份读模型、
  *    同一个 fmt。这里不新增第二份汇总逻辑，免得页面改了导出没改（或反过来）。
- * 2. **家系与看法按构造排除**：本模块只 SELECT 白名单里的表
+ * 2. **家系、看法与照护按构造排除**：本模块只 SELECT 白名单里的表
  *    （subjects / genotype_rows / phenotype_rows / stage_rows / metrics / metric_points /
- *    tolerance_rows）。`family_rows` 与 `viewpoints` 在代码里根本不出现——不是
- *    "读了再过滤"，是压根没读（H3 fail-closed：想泄漏都没有通道）。
+ *    tolerance_rows）。`family_rows`、`viewpoints`、`caregiver_rows` 在代码里根本不出现——
+ *    不是"读了再过滤"，是压根没读（H3 fail-closed：想泄漏都没有通道）。
  * 3. **只抄已入档记录，不做解读**：不产"是否恶化""是否达标"，数字是原值，
  *    单位是库里的单位；分期原样带"（均为医生给出）"字样。
  *
@@ -90,6 +90,6 @@ export function exportSummaryText(db, profileKey) {
   return {
     profileKey,
     text: [...head, summaryText(profile), ...foot].join('\n'),
-    excluded: ['family_rows', 'viewpoints'],
+    excluded: ['family_rows', 'viewpoints', 'caregiver_rows'],
   };
 }
