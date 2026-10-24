@@ -3,7 +3,8 @@
  * `name` / `inject` / `Config` / `apply` 四样（workbench-standard §3.4）。
  *
  * 这一层只做三件事：
- * 1. 打开数据（配了 `root` 就用那个资料目录；没配就退到内存演示库，保证装上去能看见东西）；
+ * 1. 打开数据（`root` 由 cordis.patch.yml 的 `dshHomePath` 分配；**缺了就报错**，
+ *    不退回内存库——装机后"重启数据消失"是最贵的一类故障，见 docs/RELEASE.md）；
  * 2. 把请求交给 `dsh/server.js` 的同一份路由（本地 dev-server 与宿主共用一条，
  *    避免"本地能开、装进 Desktop 就 404"；导入链路的端点因此自动一致）；
  * 3. 所有请求先过宿主的鉴权回执（`connection.requestRejection`），不自己造登录。
@@ -30,9 +31,10 @@ export const inject = ['webServer', 'connection']
 export const API_PREFIX = '/api/attr'
 export const UI_PREFIX = `${API_PREFIX}/ui`
 
-/** Config 必须是 Schemastery schema；root 可选——不给就用内存演示库。 */
+/** Config 必须是 Schemastery schema；root 由 cordis.patch.yml 的 `dshHomePath` 给。
+ *  **required**：漏了它装机能打开，但每次重启回到内存演示库——用户看到的是"数据丢了"。 */
 export const Config = Schema.object({
-  root: Schema.string(),
+  root: Schema.string().required(),
 })
 
 function sendJson(res, status, body) {
@@ -43,11 +45,11 @@ function sendJson(res, status, body) {
 
 /** 打开数据源。返回 Workbench（内存库也走同一个类，读模型只写一份）。 */
 function openDataSource(root) {
-  /* 没配资料目录：内存库 + 演示数据。只读演示，不落盘，不会在用户机器上留文件。
-     此时 workspace 为 null：查得到资料列表，但保存原件会被 409 拦住（没有地方放）。 */
+  /* root 由 cordis.patch.yml 的 `dshHomePath('attr-workbench')` 注入。**不给就报错**，
+     不悄悄退到内存库：那样用户装完能用、重启后数据全没，报错至少说清了原因。 */
   const dir = root ? String(root).replace(/\/+$/, '') : null
-  const file = dir ? `${dir}/xyb-attr.sqlite` : ':memory:'
-  const db = openDatabase(file)
+  if (!dir) throw new Error('缺少资料目录：cordis.patch.yml 的 config.root 未注入')
+  const db = openDatabase(`${dir}/xyb-attr.sqlite`)
   migrate(db)
   if (!hasDemoData(db)) seedDemo(db)
   return Workbench.fromDatabase(db, { workspace: dir })

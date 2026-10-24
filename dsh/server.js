@@ -338,6 +338,13 @@ export function createHandler({ workbench, prefix = '' }) {
 
     if (path.startsWith('/api/')) return json(404, { error: 'not_found', path });
 
+    /* 宿主内嵌时页面挂在 `/api/attr/ui/` 下，页面的 `<script src="app.js">` 是**相对路径**，
+       浏览器会去请求 `/api/attr/ui/app.js`——剥掉 `ui` 这段才落到 public/app.js。
+       2026-10-24 装机探针实测踩过：不加这一条，index.html 能出来（兜底回 index），
+       但 app.js 请求也被兜底成 index.html，浏览器拿到 HTML 当 JS 解析 → 业务区整片空白，
+       控制台只有一句 "Unexpected token '<'"。本地 dev-server 挂在根上，所以本地永远看不到这个问题。 */
+    if (path === '/ui' || path.startsWith('/ui/')) path = path.slice(3) || '/';
+
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, { allow: 'GET, HEAD' });
       return res.end();

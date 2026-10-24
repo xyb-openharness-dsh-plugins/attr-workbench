@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## 0.2.3 — 2026-10-24（M6 装机 + M7 发布）
+
+G1/G2/G3 三个闸口签认（`docs/SIGNOFF-2026-10-24.md`），装机三层验收通过，仓库打 tag `v0.2.3`。
+装机过程抓出两个**只有装进 Desktop 才暴露**的故障，都已修 + 加回归。
+
+### 新增
+
+- **装机验收探针** `scripts/probe-install.mjs`（`npm run probe:install`）：默认加载**装机副本**（`profiles/web/node_modules/@xyb-community/attr-workbench`），用假宿主（`webServer.register` / `connection.requestRejection` / `effect`）把插件跑起来，再让真 Chrome 走 12 页。45 项断言覆盖 L0 包元数据 / L1 模块图 / L2 接口与落库 / L3 交互。
+- **宿主挂载合同测试** `test/host-mount.test.mjs`（3 条）：`/api/attr/ui/*` 的相对资源必须落到 `public/`、接口两种前缀都接、前缀之外一律 404。
+- **窄宽自适应规则与探针**：`docs/RESPONSIVE-RULES.md`（六条硬规则 + 1180/900/600 三档）+ `scripts/probe-responsive.mjs` + `test/responsive.test.mjs`（6 条锁 CSS 声明）。实测 296 视图 0 问题。
+- **`LICENSE`**（专有许可：允许本机自用与社区内协作，禁止再分发/商用；含第三方归属与免责声明），`package.json` 的 `license` 改 `SEE LICENSE IN LICENSE`。
+- **`docs/RELEASE.md`** 装机与回滚记录（三版逐项原因 + 五要素 + 三层验收 + 待用户项）。
+
+### 修复（都是装机才暴露的）
+
+- **装机副本 import 失败**：`dsh/demo.js` 引 `../demo/build-demo-data.mjs`，而 `files` 白名单没有 `demo/`。开发版能跑是因为仓库里有那个目录，装进 Desktop 立刻 `Cannot find module`。→ `files` 加 `demo/build-demo-data.mjs`（只加这一个，不带 188 kB 的演示 sqlite）。
+- **装机后业务区全白（`Unexpected token '<'`）**：iframe 指向 `/api/attr/ui/index.html`，页面里 `<script src="app.js">` 是相对路径 → 浏览器请求 `/api/attr/ui/app.js` → 剥掉 prefix 后是 `/ui/app.js` → 静态层找不到文件就**兜底回 index.html**，浏览器拿 HTML 当 JS 解析。→ 静态段先把 `/ui` 前缀剥掉再解析；`test/host-mount.test.mjs` ① 钉死。**本地 dev-server 挂在根上，这个故障本地永远看不到。**
+- **`Config.root` 缺失不再退内存库**：`dsh/index.js` 的 `openDataSource` 缺 root 直接抛错，`Config.root` 改 `Schema.string().required()`，patch 里补 `config.root: !!js dshHomePath('attr-workbench')`。漏这条的症状是「装机能打开、每次重启回到内存库」，用户以为数据丢了。
+- **`npm run check` 与渠道对不上**：`build:version` 默认 `prototype`，装机版要走 `beta`；`check` 里补 `ATTR_CHANNEL=beta` 前缀，避免 bump 版本后必红。
+
+### 变更
+
+- `public/app.js:19` / `public/index.html` 的版本字面量随 VERSION 前移（0.2.1 → 0.2.3）。
+- `package.json` `files` 去掉 `assets`（3 MB CTCAE 参考 PDF 与品牌原图不进包），包体 6.9 MB → 437.5 kB。
+- 单测 79 → 82 条。
+
 ## 未发布 — 2026-10-22（M5 收尾：MinerU 全链路打通）
 
 DEV-PLAN 任务 4 第二步完成，M5 8/8。**仍未装机。**

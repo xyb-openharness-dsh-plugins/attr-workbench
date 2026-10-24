@@ -1,3 +1,10 @@
 - insert:
     - id: attr-main
       name: "@xyb-community/attr-workbench"
+      config:
+        root: !!js dshHomePath('attr-workbench')
+# 说明（本仓库 checker 以文件首字符为 `- insert:` 判定，注释一律放条目之后）：
+# 1. name 必须写 npm 包名（相对/绝对路径 Node 解析不到）；空 patch 写 `[]`。
+# 2. id 与 Config 的 id / package.json 的 dsh 块同值，别手改。
+# 3. config.root 由宿主 dshHomePath 分配用户数据目录——漏了这条，装机能打开但每次重启都回到
+#    内存演示库（小星宝 0.1.0 装机原样踩过：用户以为"数据丢了"）。Config.root 因此改为 required。
