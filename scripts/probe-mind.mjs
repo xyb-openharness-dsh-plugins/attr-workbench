@@ -140,6 +140,36 @@ try {
 
   const shot2 = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true })
   writeFileSync(join(SHOTS, 'v0.4.0-guideline-source.png'), Buffer.from(shot2.data, 'base64'))
+
+  /* ---------- 3. 当前方案的治疗出处卡（0.5.0） ---------- */
+  if (!(await clickView('treatment'))) problems.push('找不到「治疗历程」导航按钮')
+  await sleep(250)
+  if (!(await clickSub('当前方案'))) problems.push('点不开「当前方案」页签')
+  await sleep(250)
+  const plan = (await cdp.eval(`document.querySelector('#main').innerHTML`)) || ''
+  const mustPlan = [
+    ['这一页的治疗分类与数字来自哪里', '治疗出处卡'],
+    ['N Engl J Med 2018;379(11):1007-1016', 'ATTR-ACT 出处'],
+    ['29.5%', 'ATTR-ACT 全因死亡数字'],
+    ['待核批准文件', '口径冲突要标待核'],
+    ['由医生决定', '出口要回到医生']
+  ]
+  for (const [needle, why] of mustPlan) if (!plan.includes(needle)) problems.push(`当前方案缺「${needle}」（${why}）`)
+
+  /* 这张卡在页面底部，要滚下去才看得到；换一张长截图 */
+  const shot3 = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true })
+  writeFileSync(join(SHOTS, 'v0.5.0-treatment-source.png'), Buffer.from(shot3.data, 'base64'))
+
+  /* 窄宽再扫一次治疗页（表格 + 长段文字，是最容易挤坏的一页） */
+  for (const width of [940, 780]) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false })
+    await sleep(150)
+    const data = JSON.parse((await cdp.eval(SCAN)) || '{}')
+    const key = `treatment/当前方案 @${width}px`
+    if (data.bodyScrollW > data.innerW + 1) problems.push(`${key}：横向溢出 ${data.bodyScrollW} > ${data.innerW}`)
+    for (const v of data.vertical || []) problems.push(`${key}：竖排单字 .${v.sel} 宽 ${v.w}px「${v.text}」`)
+    for (const c of data.clipped || []) problems.push(`${key}：内容被裁 .${c.sel} ${c.scrollW}>${c.clientW}`)
+  }
 } catch (error) {
   problems.push(`探针异常：${error?.message ?? error}`)
 } finally {

@@ -449,6 +449,38 @@ test('⑪ 开发版新增：情绪与照护者页签 + 确诊路径指南出处�
   assert.ok(!normalize(diag).includes('324-332'), '摘掉 dev-only 后不该残留出处卡（否则白名单放过了别的改动）');
 });
 
+/* ⑫ 治疗指南出处（0.5.0）：治疗历程 → 当前方案。同样属开发版先行。
+   除了「在不在」，还要卡住三条：数字必须带试验与页码、口径冲突要并列不许挑一个、
+   整卡不许出现任何替医生开药的表述。 */
+test('⑫ 开发版新增：当前方案的治疗分类与指南出处卡', () => {
+  setState(dev.T, { profile: 'A', view: 'treatment', sub: '当前方案' });
+  const html = renderMain(dev.T);
+
+  assert.ok(html.includes('<!--dev-only-->'), '治疗出处卡必须整块 dev-only 包裹（否则 parity 会挂）');
+  assert.ok(html.includes('这一页的治疗分类与数字来自哪里'), '缺卡片标题');
+
+  // 1) 三要素：机构 / 卷期页 / DOI
+  assert.ok(html.includes('中华心血管病杂志 2021;49(4):324-332'), '缺卷期页');
+  assert.ok(html.includes('10.3760/cma.j.cn112148-20201217-00993'), '缺 DOI');
+
+  // 2) 关键数字必须挂到试验上，不许只写数字
+  assert.ok(html.includes('29.5%') && html.includes('42.9%'), '缺 ATTR-ACT 全因死亡两组数字');
+  assert.ok(html.includes('N Engl J Med 2018;379(11):1007-1016'), '缺 ATTR-ACT 出处');
+  assert.ok(/HR 0\.70/.test(html), '缺 hazard ratio');
+
+  // 3) 口径冲突要并列：两处批准时间都得在，且标待核
+  assert.ok(html.includes('2020-09') && html.includes('2020 年 10 月'), '两处批准时间必须并列出现');
+  assert.ok(html.includes('待核批准文件'), '冲突要标待核，不许自行择一');
+
+  // 4) 底线：整卡不出现替医生开药的措辞；出口只能是「由医生决定」
+  const card = html.slice(html.indexOf('这一页的治疗分类与数字来自哪里'), html.indexOf('<!--/dev-only-->'));
+  assert.ok(!/建议使用|推荐使用|建议服用|可以考虑换|应当停用/.test(card), `出处卡出现了处置建议：${card.slice(0, 120)}`);
+  assert.ok(card.includes('由医生决定'), '要给回医生，不能停在数据上');
+
+  // 5) 摘掉 dev-only 后不该残留（否则白名单放过了别的改动）
+  assert.ok(!normalize(html).includes('1007-1016'), '摘掉 dev-only 后仍残留出处卡');
+});
+
 test.after(() => {
   const hits = [...whitelistHits.entries()];
   const line = hits.length
