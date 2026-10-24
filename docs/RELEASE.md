@@ -19,7 +19,8 @@ README/许可证/素材来源/运行依赖/更新说明：`LICENSE`（专有许�
 | Release/npm | tag `v0.2.3` / 本地 tgz | `ce53a022…`（未发 npm registry） | 已执行（tag）；npm 不适用 |
 | 市场 PR | 官方目录仓库 | 用户未授权投稿 | 不适用 |
 | 上架 | 公开 catalog | 同上 | 不适用 |
-| 组织 BACKLOG 状态 | `.github/BACKLOG.md` §2.2 #80 | 建议改 `🔵 v0.2.3（2026-10-24 装机三层验收）`，真机确认后再 🟢（M8） | 未执行 |
+| 组织 BACKLOG 状态 | `.github/BACKLOG.md` §2.2 #80 | 建议改 `🔵 v0.2.3（2026-10-24 装机三层验收）`，真机确认后再 🟢（M8） | ⏸ 用户 2026-10-24 决定先不发布 |
+| 本地 tgz 自测 | `npm run install:local` | 432.5 kB / 46 文件逐个对上；探针 45/45 | 已执行（本轮替代发布动作） |
 
 市场状态说明：GitHub Release 不会自动成为市场安装来源。本轮**没有**提交目录 PR，也不声称「已上架」。
 工作台市场发布另按 `docs/10-MARKET-PUBLISHING.md` 执行；未授权投稿时标不适用，不把 Git push 当市场发布。
@@ -49,6 +50,33 @@ README/许可证/素材来源/运行依赖/更新说明：`LICENSE`（专有许�
 | 接口层 | L2 全过：health 200 / bootstrap 六件齐全（profiles=A,B）/ `/api/attr/ui/` 200 / `POST /api/attr/api/bp` 200 且**回读磁盘库 `bp_rows` 有数**（证明写的是 `config.root` 那只库，不是内存库） |
 | 交互层 | L3 全过：真 Chrome 打开装机副本，顶栏版本 chip = `v0.2.3`（bootstrap 回填成功）、12 个导航页逐个点开有内容且 `scrollWidth === innerWidth`、0 未捕获异常、0 失败请求 |
 | 待用户 | ① 重启 DSH Desktop → 设置→通用→启用工作台 → 添加「小甲宝」→ 业务区应为真实界面；② 点「AI 对话」确认原生会话被拉起（宿主侧 `pinky:agent-draft` 监听端不在本仓库）；③ 关掉重开，确认 `harness/attr-workbench/xyb-attr.sqlite` 数据还在 |
+
+## 本地 tgz 自测：`npm run install:local`（2026-10-24）
+
+不发布也能验：打包装进 Desktop 的 profile，再对装机副本跑探针，全程一条命令。
+
+```
+npm run install:local              # pack → 装 → 逐文件比对 → 探针
+npm run install:local -- --dry-run # 只打包、只列文件，不碰 profile
+```
+
+五步：① `npm pack`（只打 `files` 白名单）② 备份 `profile/package.json` 后 `pnpm add -w file:<tgz>` ③ **删掉副本目录再 `pnpm install`** 强制重链 ④ 逐文件比对「包里那 N 个」与「副本里那 N 个」⑤ `ATTR_PKG=<副本> node scripts/probe-install.mjs`。
+
+### 为什么第 ③ 步不能省（这一版实测踩到）
+
+同一版本号重打包后，`pnpm add -w file:xxx.tgz` 会打印 **"Already up to date"**，lockfile 里的 `integrity` **已经换成新包的**，但 `node_modules` 下那坨文件**还是旧的**。
+后果很隐蔽：探针跑的是上一轮打出来的代码，而两次版本号都是 `0.2.3`，看 `package.json` 分辨不出来——**你以为验了新包，其实验的是旧副本**。
+所以脚本第 ④ 步必须逐文件对；对不上就直接退出 1，不跑探针（跑出来的绿是假的）。
+
+顺带一条：`npm pack` 同版本重打会得到不同的 shasum（`bc606f44…` → `edf824d8…` → `cad4837a…`），因为文件时间戳参与归档。**别拿 shasum 当版本号用**，版本看 `package.json`，内容看第 ④ 步的逐文件比对。
+
+| 本轮自测结果 | 值 |
+| --- | --- |
+| 包 | `release/xyb-community-attr-workbench-0.2.3.tgz`（432.5 kB / 46 文件） |
+| 装机副本 | 46 个文件逐个对上，与仓库 `dsh/server.js` 逐字节一致 |
+| 装机副本自查 | 用新版检查器跑副本本身：`staticPass: true`、0 errors、2 warnings（⑧ 子路径提示 + peer 提示，均为预期） |
+| 探针 | 45/45 全过（含「写一条血压回读磁盘库有数」） |
+| `npm run check` | 全绿 |
 
 ## 探针为什么必须对「装机副本」跑
 

@@ -37,7 +37,8 @@
     "pack:check": "npm pack --dry-run",
     "check:install": "node scripts/check-install.mjs",
     "probe:resp": "node scripts/probe-responsive.mjs",
-    "probe:install": "node scripts/probe-install.mjs"
+    "probe:install": "node scripts/probe-install.mjs",
+    "install:local": "node scripts/install-local.mjs"
   },
   "dsh": {
     "bundle": {

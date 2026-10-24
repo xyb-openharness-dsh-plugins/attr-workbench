@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## 未发布 — 2026-10-24（M8 暂缓发布，改走本地 tgz 自测）
+
+M8「回填组织 BACKLOG」按用户要求**先不发布**：不碰 `.github/BACKLOG.md`、不提 PR、不推 tag。改为用打出来的 tgz 直接装进 Desktop 的 profile 做一轮自测。
+
+### 新增
+
+- **`scripts/install-local.mjs`**（`npm run install:local`）：一条命令走完 pack → 装进 `profiles/web` → 逐文件比对 → 对装机副本跑探针。`--dry-run` 只打包列文件，`--no-probe` 跳过探针，`DSH_PROFILE` 可换 profile。
+- 支持 `--dry-run` / `--no-probe` / `DSH_PROFILE` 三个开关。
+
+### 修复（安装侧，不是包本身的问题）
+
+- **同版本重打包后副本不换**：`pnpm add -w file:<tgz>` 打印 `Already up to date`，lockfile 的 `integrity` 已更新但 `node_modules` 下文件仍是旧的。两次版本号都是 `0.2.3`，从 `package.json` 分辨不出来——**探针会对着上一轮的代码报绿**。→ `install:local` 装完先删副本目录再 `pnpm install` 强制重链，然后逐文件比对包与副本，对不上直接退出 1、不跑探针。
+
+### 变更
+
+- `docs/RELEASE.md` 增「本地 tgz 自测」一节（五步 + 为什么必须重链 + shasum 不等于版本号）。
+- `package.json` `files` 不变（`scripts/` 本来就在白名单里），包内文件 45 → 46。
+
+### 本轮实测
+
+| 项 | 结果 |
+| --- | --- |
+| 包 | 432.5 kB / 46 文件 |
+| 副本一致性 | 46 个文件逐个对上；`dsh/server.js` 与仓库逐字节一致 |
+| 副本静态自查 | 新版检查器跑副本本身：`staticPass: true`、0 errors、2 warnings（预期） |
+| 探针 | 45/45 全过 |
+| `npm run check` | 全绿 |
+
 ## 0.2.3 — 2026-10-24（M6 装机 + M7 发布）
 
 G1/G2/G3 三个闸口签认（`docs/SIGNOFF-2026-10-24.md`），装机三层验收通过，仓库打 tag `v0.2.3`。

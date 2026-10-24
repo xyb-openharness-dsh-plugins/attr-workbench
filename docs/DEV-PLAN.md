@@ -22,8 +22,9 @@
 | M5 | 开发版 | 移植六步完成；血压录入 / 门诊摘要导出 / AI 草稿交付（iframe 侧）完成并实测；MinerU 全链路（客户端层 → labparse 抽取 → import 编排 → 0003 迁移 → 上传/核对 UI）真实云端跑通 | ✅ 2026-10-22（8/8） |
 | M6 | 装机 | Desktop Harness 活动 profile 安装；三层验收（配置层 / 加载层 / 交互层） | ✅ 2026-10-24（v0.2.3，`probe:install` 45 项全过，见 [RELEASE](RELEASE.md)） |
 | M7 | 发布 | 仓库 push + 市场描述 + LICENSE/NOTICE 复核 | ✅ 2026-10-24（push + tag `v0.2.3`；**市场投稿未授权，未提交**） |
-| M8 | 状态回填 | 组织 `BACKLOG.md` 对应行状态与版本同步（[§2.2 #80](https://github.com/xyb-openharness-dsh-plugins/.github/blob/main/BACKLOG.md)）；🟢 必须 V1+V2+V3 三层都过 | ⏳ 待执行（建议改 🔵 `v0.2.3`，真机确认后再 🟢） |
+| M8 | 状态回填 | 组织 `BACKLOG.md` 对应行状态与版本同步（[§2.2 #80](https://github.com/xyb-openharness-dsh-plugins/.github/blob/main/BACKLOG.md)）；🟢 必须 V1+V2+V3 三层都过 | ⏸ 2026-10-24 用户决定「先不发布」；判据表已备好，说发布即执行 |
 | M9 | 回流闭环 | 从 CHANGELOG / LESSONS 抽出**可执行**的脚手架闸门（不是再写一篇文档）；新项目 `init` 后自动生效；有反向回归 | ✅ 2026-10-24（检查器四条装机面规则 + 6 条回归，横测 7 仓） |
+| M9+ | 自测装机 | 不发布也能验：`npm run install:local`（pack → 装 → 逐文件比对 → 探针） | ✅ 2026-10-24（46 文件对上，探针 45/45） |
 
 ---
 
@@ -76,6 +77,10 @@
 ---
 
 ## M8：回填组织 BACKLOG 状态（M7 之后）
+
+> **状态（2026-10-24）：用户明确「先不发布 M8」。** 不改 `BACKLOG.md`、不提 PR、不推 tag。
+> 这一轮改成「本地 tgz 自测」：`npm run install:local`（pack → 装进 profile → 逐文件比对 → 探针），
+> 45/45 全过。M8 的判据与词表保持不变，等用户说发布时直接照下面的表改，不需要重新讨论。
 
 发布不等于"社区知道这东西能用了"。目标池的唯一权威位置是组织的
 [`BACKLOG.md`](https://github.com/xyb-openharness-dsh-plugins/.github/blob/main/BACKLOG.md)，
