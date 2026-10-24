@@ -16,7 +16,7 @@
    全部与原型一致。 */
 
 const APP_INFO = {
-  version: '0.2.3',
+  version: '0.3.0',
   build: '2026-10-21',
   channel: 'dev',
   channelLabel: '开发版 · 本机优先',
@@ -339,7 +339,13 @@ function buildData(data) {
   }
   /* 宿主未提供原生会话时（bootstrap 显式声明 agent.available=false），主按钮进 unavailable 态：
      禁用 + 说明降级原因，绝不自建聊天框（交互合同 20 号：缺位时走剪贴板回退）。 */
-  if (D.agent && D.agent.available === false) {
+  if (D.agent && D.agent.mode === 'host') {
+    /* 宿主外壳负责会话：本页不再画第二份（否则右侧会出现两个「AI 对话」，2026-10-24 真机反馈）。
+       注意也用 unavailable 态兜住一切"本页不提供会话"的分支，避免两套判断。 */
+    state.hosted = true;
+    state.agentPhase = 'unavailable';
+    if (D.agent.note) AGENT_HINT.unavailable = String(D.agent.note);
+  } else if (D.agent && D.agent.available === false) {
     state.agentPhase = 'unavailable';
     if (D.agent.note) AGENT_HINT.unavailable = String(D.agent.note);
   }
@@ -360,6 +366,9 @@ const state = {
   sub: {},
   profile: 'A',
   agentPhase: 'idle',
+  /* 宿主形态：'host' ＝ 装进 Desktop（customFrame），原生会话由面板外壳排在右侧，
+     本页整组会话控件必须收起；'dev-mount' / 缺省 ＝ 本地 dev-server，页面自带挂载位。 */
+  hosted: false,
   agentSize: 'std',
   agentRatio: AGENT_PANE.def,
   sel: ['ntprobnp', 'egfr', 'nyha'],
@@ -1115,6 +1124,13 @@ function renderAgent() {
   const hide = $('#agent-hide'); if (hide) hide.hidden = !open;         // × 只在展开时出现
   const hint = $('#top-hint'); if (hint) hint.textContent = AGENT_HINT[ph] || AGENT_HINT.idle;
   const dot2 = $('#agent-dot'); if (dot2) dot2.classList.toggle('on', open);
+  /* 装进 Desktop 时整组会话控件收起：顶栏那个「AI 对话」按钮由面板外壳提供（在 iframe 外面的
+     那一条 headers 里）。这里留一个灰按钮只会让人以为坏了两处。 */
+  if (state.hosted) {
+    if (btn) btn.hidden = true;
+    if (hide) hide.hidden = true;
+    if (hint) hint.textContent = 'AI 会话在右侧（宿主面板提供，可拖宽/收起）；本页只负责记录与整理。';
+  }
 }
 
 /* ---------------- AI 会话：五态文案（与 prompts/DSH-WORKBENCH-TOP-BAR.md §5 的按钮文案表一致） ----------------

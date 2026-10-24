@@ -90,3 +90,11 @@ body.agent-dragging *{cursor:col-resize !important}
 .dev-entry-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
 /* 文件选择框不适用 32px 定高：给足行高，选中后显示的长文件名要能换行 */
 .dev-entry input[type=file]{height:auto;min-height:32px;padding:5px 8px;font-size:12px;line-height:1.5}
+
+/* ---------- 宿主形态：页面内会话控件整体收起（2026-10-24） ----------
+   装进 Desktop 后原生会话由面板外壳排在右侧，页面里那份会话栏必须让位。
+   只加 [hidden] 不够：.tb-agent 有 display:flex 之类的显式排版，会盖过 hidden 属性的默认样式。 */
+.tb-agent[hidden],
+#agent-hide[hidden],
+.agent-dock[hidden],
+.agent-splitter[hidden]{display:none !important}

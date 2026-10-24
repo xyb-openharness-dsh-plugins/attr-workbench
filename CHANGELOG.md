@@ -1,5 +1,44 @@
 # CHANGELOG
 
+## 0.3.0 — 2026-10-24（装机首跑两处故障）
+
+按真机反馈修两件事：**装进去打不开库**、**AI 对话位置错（两条会话栏并排）**。
+
+### 修复
+
+- **打不开数据库**：`~/Library/Application Support/dsh-desktop/harness/attr-workbench/xyb-attr.sqlite`
+  报 `data_unavailable`。根因不是权限也不是加密：宿主的 `dshHomePath('attr-workbench')` 只**拼路径**，
+  不会建目录，而 `harness/` 下并没有 `attr-workbench/` 这一层，SQLite 在不存在的目录里建不了文件。
+  → `dsh/index.js` 开库前 `mkdirSync(dir, { recursive: true })`；建不动时报清是哪一层（带 `error.code`），
+  不把 ENOENT 原样抛给用户。本地 `Workbench.open()` 本来就有这一步，宿主那条路漏了。
+- **AI 对话位置错**：0.2.x 走标准分栏，业务页面自己画了一条会话栏，宿主又在右边给了一块原生会话区——
+  屏幕上同时出现两个「AI 对话」，且都不能拖、不能关（标准分栏下宿主根本没有拖宽/收起的接口）。
+  → `customFrame` 改 `true`，原生会话节点作为 `conversation` prop 交给面板外壳排版；
+  页面侧靠 bootstrap 的 `agent.mode = 'host'` 把整组会话控件收起，不留一个灰按钮。
+
+### 新增
+
+- **`src/client.js` + `scripts/build-client.mjs`**：客户端从"手写单文件"改成"源码 + 生成"，
+  注入包名/仓库/UI 前缀/版本/面板参数（唯一来源 `lib/layout.js`、`dsh/index.js`、`lib/version.js`、`package.json`）。
+  `npm run check` 里加 `build-client.mjs --check`，改一处漏一处会红。
+  外壳按乳腺癌 0.12.0 样板：语义 `<header>` + `--dsh-frame-leading-clearance` 避让、splitter 拖动/键盘、
+  收起不结束会话、宽度记忆、窄屏改抽屉、`conversation` 始终挂载只切 display。
+- **草稿交付闭环**：页面「整理本页要点」→ `postMessage({type:'pinky:agent-draft'})` → 外壳校验 source/origin →
+  `ensureSession({ folder })` 调起原生会话 → 草稿填入输入框，**不自动发送**。
+- `/api/attr/health` 增 `dir` 字段（`ensureSession` 的 folder 靠它，否则会话会落到默认目录、与资料目录脱钩）。
+
+### 变更
+
+- `test/server.test.mjs`：bootstrap 断言从「customFrame 必须 false」改为「必须 true」，
+  并新增 `agent.mode === 'dev-mount'`（dev-server 没有宿主外壳，页面自带挂载位）。
+- `public/shell.css`：补 `[hidden]` 强制隐藏规则（`.tb-agent` 有显式 `display`，会盖过 hidden 默认样式）。
+- 版本 0.2.3 → 0.3.0（改包必升版：客户端形态变了）。
+
+### 未验证
+
+- Desktop 真机走查（点「AI 对话」是否落到右侧、splitter 拖动、收起重开、重启后数据是否留在
+  `harness/attr-workbench/xyb-attr.sqlite`）——本轮只做到静态全绿 + 单测 82/82，装机结论待用户确认。
+
 ## 未发布 — 2026-10-24（M8 暂缓发布，改走本地 tgz 自测）
 
 M8「回填组织 BACKLOG」按用户要求**先不发布**：不碰 `.github/BACKLOG.md`、不提 PR、不推 tag。改为用打出来的 tgz 直接装进 Desktop 的 profile 做一轮自测。

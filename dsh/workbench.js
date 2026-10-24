@@ -32,16 +32,20 @@ export class Workbench {
   #db = null;
   #workspace = null;
   #imports = null;
+  #agent = null;
 
   /**
    * 用已经打开的库建实例（宿主侧 `apply()` 用这条：它自己开了内存库或 root 库，
    * 不该再走一遍目录校验）。workspace 为 null 时导入服务仍可查，但保存原件会 409。
    */
-  static fromDatabase(db, { workspace = null } = {}) {
+  static fromDatabase(db, { workspace = null, agent = null } = {}) {
     if (!db) throw new Error('fromDatabase 需要一个已打开的数据库');
     const wb = new Workbench();
     wb.#db = db;
     wb.#workspace = workspace ? workspace : null;
+    /* 会话形态由调用方声明：宿主侧没有页面内挂载位（原生会话在面板外壳里），
+       本地 dev-server 有。bootstrap 把它原样下发给页面，前端只读这一处。 */
+    wb.#agent = agent || null;
     return wb;
   }
 
@@ -76,7 +80,7 @@ export class Workbench {
   get workspace() { return this.#workspace; }
   get db() { return this.#db; }
 
-  bootstrap() { return bootstrap(this.#db, { version, build }); }
+  bootstrap() { return bootstrap(this.#db, { version, build, agent: this.#agent }); }
   listSubjects() { return listSubjects(this.#db); }
   getProfile(key) { return getProfile(this.#db, key); }
 

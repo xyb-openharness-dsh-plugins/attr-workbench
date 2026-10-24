@@ -57,7 +57,10 @@ test('② /api/bootstrap：两个档案 + 临床线索 + 面板参数与 lib/lay
     assert.equal(j.agent.available, true, '开发版自带挂载位演示');
     /* 面板参数：服务侧下发与 lib/layout.js 必须逐字一致（曾因硬编码 customFrame:true 漂移过） */
     assert.deepEqual(j.layout.panel, PANEL, 'bootstrap 的 layout.panel 必须等于 lib/layout.js 的 PANEL');
-    assert.equal(j.layout.panel.customFrame, false, '阶段 2 走标准分栏');
+    /* 0.3.0 起 customFrame=true：原生会话由面板外壳排版（标准分栏下会出现两个「AI 对话」）。
+       这里不写死 true，而是与 PANEL 比对——写死等于把同一件事记两遍。 */
+    assert.equal(j.layout.panel.customFrame, true, '0.3.0 起走 customFrame（原生会话由外壳排版）');
+    assert.equal(j.agent.mode, 'dev-mount', 'dev-server 没有宿主外壳，页面自带挂载位');
     assert.deepEqual(j.layout.agentPane, AGENT_PANE, 'bootstrap 的 layout.agentPane 必须等于 lib/layout.js 的 AGENT_PANE');
     assert.ok(j.meta.windowStart && j.meta.windowEnd, '演示时间窗要在 meta 里');
   });

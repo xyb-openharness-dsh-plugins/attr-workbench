@@ -158,7 +158,7 @@ function readDemoMeta(db) {
 }
 
 /** `/api/bootstrap` 的 payload。version/build 由调用方注入（唯一来源 lib/version.js）。 */
-export function bootstrap(db, { version, build } = {}) {
+export function bootstrap(db, { version, build, agent } = {}) {
   const profiles = {};
   for (const s of listSubjects(db)) profiles[s.profile_key] = readProfile(db, s.profile_key);
   const trials = rows(db, 'SELECT record_id AS id, source, title, status, note, saved FROM trials ORDER BY ord')
@@ -169,9 +169,12 @@ export function bootstrap(db, { version, build } = {}) {
     meta: readDemoMeta(db),
     profiles,
     trials,
-    /* 宿主未提供原生会话时这里会是 available:false；开发版自带挂载位演示，所以默认 true。
+    /* 会话形态由调用方声明（workbench.js 的 fromDatabase 选项）：
+       - 本地 dev-server / 原型：页面内自带挂载位，available:true；
+       - 装进 Desktop（customFrame=true）：原生会话由面板外壳排版，页面**不许再画第二份**，
+         否则屏幕右边会同时出现两个「AI 对话」——2026-10-24 真机反馈的"位置错误"就是这个。
        前端只读这一处，不在客户端猜第二个入口（20 号交互合同）。 */
-    agent: { available: true, mode: 'dev-mount' },
+    agent: agent || { available: true, mode: 'dev-mount' },
     /* 面板宽度档位与业务分栏参数同源（lib/layout.js），客户端不再写第二份数字。
        注意 customFrame 由 layout.js 唯一决定：本项目阶段 2 是 false（标准分栏，
        宿主管原生会话排版）；改 true 前先看 layout.js 头注释里记的阶段 3 升级路径。 */
