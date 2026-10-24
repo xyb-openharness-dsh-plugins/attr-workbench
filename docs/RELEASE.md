@@ -19,6 +19,7 @@ README/许可证/素材来源/运行依赖/更新说明：`LICENSE`（专有许�
 | Release/npm | tag `v0.2.3` / 本地 tgz | `ce53a022…`（未发 npm registry） | 已执行（tag）；npm 不适用 |
 | 市场 PR | 官方目录仓库 | 用户未授权投稿 | 不适用 |
 | 上架 | 公开 catalog | 同上 | 不适用 |
+| 组织 BACKLOG 状态 | `.github/BACKLOG.md` §2.2 #80 | 建议改 `🔵 v0.2.3（2026-10-24 装机三层验收）`，真机确认后再 🟢（M8） | 未执行 |
 
 市场状态说明：GitHub Release 不会自动成为市场安装来源。本轮**没有**提交目录 PR，也不声称「已上架」。
 工作台市场发布另按 `docs/10-MARKET-PUBLISHING.md` 执行；未授权投稿时标不适用，不把 Git push 当市场发布。
