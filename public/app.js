@@ -16,7 +16,7 @@
    全部与原型一致。 */
 
 const APP_INFO = {
-  version: '0.3.0',
+  version: '0.3.1',
   build: '2026-10-21',
   channel: 'dev',
   channelLabel: '开发版 · 本机优先',
