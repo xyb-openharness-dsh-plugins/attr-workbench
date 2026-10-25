@@ -40,7 +40,8 @@
     "probe:resp": "node scripts/probe-responsive.mjs",
     "probe:install": "node scripts/probe-install.mjs",
     "install:local": "node scripts/install-local.mjs",
-    "probe:mind": "node scripts/probe-mind.mjs"
+    "probe:mind": "node scripts/probe-mind.mjs",
+    "probe:primer": "node scripts/probe-disease-primer.mjs"
   },
   "dsh": {
     "bundle": {
