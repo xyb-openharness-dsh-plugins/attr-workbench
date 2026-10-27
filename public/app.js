@@ -28,7 +28,7 @@
    除上面 1)–9) 外与原型一致。 */
 
 const APP_INFO = {
-  version: '0.6.0',
+  version: '0.6.1',
   build: '2026-10-21',
   channel: 'dev',
   channelLabel: '开发版 · 本机优先',
@@ -708,6 +708,19 @@ function renderMetricGroups(p, keys, title) {
 }
 
 /* ---------------- 各页 ---------------- */
+/* 36 号 §2.6 看板状态卡：无锚点数据时整卡「待初始化」，天数不手填、不造临床锚点。 */
+function statusCard() {
+  return `<section class="card status-card" aria-labelledby="status-card-title">
+    <span class="status-eyebrow">状态卡 · 待初始化</span>
+    <h2 class="status-big" id="status-card-title">待初始化</h2>
+    <p class="status-line">尚无锚点日；完成三步初始化后自动派生。</p>
+    <p class="status-steps">三步：① 选择本机资料目录 ② 确认患者档案 ③ 设置锚点日。原型未接通，不预填任何日期。</p>
+    <div class="status-actions">
+      <button class="primary" data-action="settings">开始三步初始化 →</button>
+      <button class="soft" type="button" data-primer-open aria-label="疾病概要：定义、医学资料与指南情况、治疗全景、发展趋势">疾病概要：ATTR 是什么？</button>
+    </div>
+  </section>`;
+}
 function viewDashboard(p) {
   const activeDrugs = p.drugs.filter(d => d[6] === 'active');
   const tasks = [
@@ -717,6 +730,7 @@ function viewDashboard(p) {
     ['review', '准备下次门诊', '带什么、问什么', 'calendar']
   ];
   return `${pageHead('看板', SUBTITLES.dashboard, `<button class="primary" data-view="review">准备下次门诊</button>`)}
+  ${statusCard()}
   <div class="intent"><i>i</i><div><b>${esc(p.stage)}</b><br>分期与心功能分级均为医生给出；本工作台不自动计算分期，也不给用药建议。</div></div>
   <div class="task-grid">${tasks.map(([v, b, s, ic]) => `<button class="task-entry" data-view="${v}">
       <span class="entry-icon">${icon(ic)}</span><b>${esc(b)}</b><span>${esc(s)}</span><span class="arrow">→</span></button>`).join('')}</div>

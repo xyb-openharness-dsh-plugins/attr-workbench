@@ -3,9 +3,14 @@
  * 全部内容属第 ② 层（解释）：只写定义、文件、指南列举过的手段、已发生的变化。
  * 任何「你该怎么办」的判断都不在这里，固定出口是「这一句需要问你的医生」。
  *
- * 原件状态照实写：本项目未取得共识与补充说明的原件，卷期页已核、小节起始页与页码待核；
- * 氯苯唑酸的批准文件也未取得，批件日期项目内两处不一致，一律标「待核」。
+ * 原件状态照实写：本项目未取得共识与补充说明的 PDF 原件，卷期页已核、小节起始页与页码待核；
+ * 各行链接指向官方全文页（中华医学期刊网 guide_html）或出版方页（Springer），均已实测可达；
+ * 链接是「据二次来源」的落点，不等于已存档 PDF 原件。氯苯唑酸的批准文件也未取得，
+ * 批件日期项目内两处不一致，一律标「待核」；该行据共识转述，链接指向共识全文页。
  */
+const CONSENSUS_URL = 'https://studite.yiigle.com/uploads/guide_html/%E8%BD%AC%E7%94%B2%E7%8A%B6%E8%85%BA%E7%B4%A0%E8%9B%8B%E7%99%BD%E5%BF%83%E8%84%8F%E6%B7%80%E7%B2%89%E6%A0%B7%E5%8F%98%E8%AF%8A%E6%96%AD%E4%B8%8E%E6%B2%BB%E7%96%97%E4%B8%AD%E5%9B%BD%E4%B8%93%E5%AE%B6%E5%85%B1%E8%AF%86%20-%20%E4%B8%AD%E5%8D%8E%E5%BF%83%E8%A1%80%E7%AE%A1%E7%97%85%E6%9D%82%E5%BF%97.html'
+const PYP_ADDENDUM_URL = 'https://link.springer.com/article/10.1007/s12350-020-02455-z'
+
 window.DISEASE_PRIMER = {
   brand: '小甲宝 ATTR-Pal',
   name: '转甲状腺素蛋白淀粉样变性',
@@ -25,21 +30,22 @@ window.DISEASE_PRIMER = {
         '家族侧：遗传型 ATTRv 的家系成员筛查由项目单列模块记录，谁去查、查了什么、结果原文，本台不做风险推算。'
       ],
       sources: [
-        { org: '中华医学会心血管病学分会心力衰竭学组', doc: '《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》，中华心血管病杂志 2021;49(4):324-332', version: '2021', original: false, page: '页码待核（卷期页已核，小节起始页待核）' },
-        { org: 'ASNC/AHA/ASE/EANM/HFSA/ISA/SCMR/SNMMI', doc: '2021 年 PYP 显像补充说明，J Nucl Cardiol 2021;28:1769-1774', version: '2021', original: false, page: '页码待核' }
+        { org: '中华医学会心血管病学分会心力衰竭学组', doc: '《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》，中华心血管病杂志 2021;49(4):324-332', version: '2021', original: false, secondaryUrl: CONSENSUS_URL, page: '页码待核（卷期页已核，小节起始页待核）' },
+        { org: 'ASNC/AHA/ASE/EANM/HFSA/ISA/SCMR/SNMMI', doc: '2021 年 PYP 显像补充说明，J Nucl Cardiol 2021;28:1769-1774', version: '2021', original: false, secondaryUrl: PYP_ADDENDUM_URL, page: '页码待核' }
       ]
     },
     {
       id: 'evidence',
       title: '医学资料规范和指南情况',
       intro: '这台工作台里出现的每一条「依据哪份文件」，都应能追到下面某一份。'
-        + '共识与补充说明的原件本项目未取得，卷期页已核、小节起始页与页码待核；批准文件同样未取得，照实标出。',
+        + '共识与补充说明的原件本项目未取得，卷期页已核、小节起始页与页码待核；批准文件同样未取得，照实标出。'
+        + '「原件」列指向官方全文页或出版方页（HTML），已实测可达；链接不等于已存档 PDF 原件。',
       table: {
         head: ['机构', '文件', '版本 / 年份', '原件', '本台的用途'],
         rows: [
-          ['中华医学会心血管病学分会心力衰竭学组', '《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》，中华心血管病杂志 2021;49(4):324-332', '2021', '未取得原件（卷期页已核）', '确诊路径与治疗三分类的出处；小节起始页待核'],
-          ['ASNC/AHA/ASE/EANM/HFSA/ISA/SCMR/SNMMI', '2021 年 PYP 显像补充说明，J Nucl Cardiol 2021;28:1769-1774', '2021', '未取得原件', 'PYP 判据的另一套口径，与共识并列摆放，不换算、不取舍'],
-          ['NMPA（经共识转述）', '氯苯唑酸用于 ATTR-CA 的批准信息', '2020（批件未取得，日期待核）', '未取得原件', '只记「已批准」这件事；批件号未核实']
+          ['中华医学会心血管病学分会心力衰竭学组', '《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》，中华心血管病杂志 2021;49(4):324-332', '2021', { text: '未取得原件（卷期页已核）', url: CONSENSUS_URL }, '确诊路径与治疗三分类的出处；小节起始页待核'],
+          ['ASNC/AHA/ASE/EANM/HFSA/ISA/SCMR/SNMMI', '2021 年 PYP 显像补充说明，J Nucl Cardiol 2021;28:1769-1774', '2021', { text: '未取得原件', url: PYP_ADDENDUM_URL }, 'PYP 判据的另一套口径，与共识并列摆放，不换算、不取舍'],
+          ['NMPA（经共识转述）', '氯苯唑酸用于 ATTR-CA 的批准信息', '2020（批件未取得，日期待核）', { text: '未取得原件（据共识转述）', url: CONSENSUS_URL }, '只记「已批准」这件事；批件号未核实']
         ]
       },
       points: [
@@ -49,9 +55,9 @@ window.DISEASE_PRIMER = {
         '未取得原件的文件只记「存在」与「大致讲什么」，不引用具体条文，页码一律写待核。'
       ],
       sources: [
-        { org: '中华医学会心血管病学分会心力衰竭学组', doc: '《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》', version: '2021（中华心血管病杂志 2021;49(4):324-332）', original: false, page: '页码待核' },
-        { org: 'ASNC/AHA/ASE/EANM/HFSA/ISA/SCMR/SNMMI', doc: '2021 年 PYP 显像补充说明', version: '2021（J Nucl Cardiol 2021;28:1769-1774）', original: false, page: '页码待核' },
-        { org: 'NMPA（经共识转述）', doc: '氯苯唑酸批准信息', version: '2020（日期待核）', original: false, page: '页码待核' }
+        { org: '中华医学会心血管病学分会心力衰竭学组', doc: '《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》', version: '2021（中华心血管病杂志 2021;49(4):324-332）', original: false, secondaryUrl: CONSENSUS_URL, page: '页码待核' },
+        { org: 'ASNC/AHA/ASE/EANM/HFSA/ISA/SCMR/SNMMI', doc: '2021 年 PYP 显像补充说明', version: '2021（J Nucl Cardiol 2021;28:1769-1774）', original: false, secondaryUrl: PYP_ADDENDUM_URL, page: '页码待核' },
+        { org: 'NMPA（经共识转述）', doc: '氯苯唑酸批准信息', version: '2020（日期待核）', original: false, secondaryUrl: CONSENSUS_URL, page: '页码待核' }
       ]
     },
     {
@@ -95,7 +101,7 @@ window.DISEASE_PRIMER = {
         '以上是文献与指南里列出的手段，按病期与线序排列，不代表任何一项适合你。选哪一个，这一句需要问你的医生。'
       ],
       sources: [
-        { org: '中华医学会心血管病学分会心力衰竭学组', doc: '《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》· 治疗章节', version: '2021', original: false, page: '页码待核（小节起始页待核）' }
+        { org: '中华医学会心血管病学分会心力衰竭学组', doc: '《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》· 治疗章节', version: '2021', original: false, secondaryUrl: CONSENSUS_URL, page: '页码待核（小节起始页待核）' }
       ]
     },
     {
@@ -110,8 +116,8 @@ window.DISEASE_PRIMER = {
         '截至 2026-10-25：共识原文记载基因沉默三种（patisiran / vutrisiran / inotersen）「均未在中国上市」；本台未对这三种药的中国上市状态做独立核验。'
       ],
       sources: [
-        { org: '中华医学会心血管病学分会心力衰竭学组', doc: '《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》', version: '2021（中华心血管病杂志 2021;49(4):324-332）', original: false, page: '页码待核' },
-        { org: 'ASNC/AHA/ASE/EANM/HFSA/ISA/SCMR/SNMMI', doc: '2021 年 PYP 显像补充说明', version: '2021（J Nucl Cardiol 2021;28:1769-1774）', original: false, page: '页码待核' }
+        { org: '中华医学会心血管病学分会心力衰竭学组', doc: '《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》', version: '2021（中华心血管病杂志 2021;49(4):324-332）', original: false, secondaryUrl: CONSENSUS_URL, page: '页码待核' },
+        { org: 'ASNC/AHA/ASE/EANM/HFSA/ISA/SCMR/SNMMI', doc: '2021 年 PYP 显像补充说明', version: '2021（J Nucl Cardiol 2021;28:1769-1774）', original: false, secondaryUrl: PYP_ADDENDUM_URL, page: '页码待核' }
       ]
     }
   ]

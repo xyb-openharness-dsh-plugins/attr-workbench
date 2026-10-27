@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## 0.6.1 — 2026-10-27（36 号 v2 补齐：指南可点 + 状态卡）
+
+### 疾病概要：指南原件可点（§2.5）
+
+- `prototypes/v0.2/primer-data.js`：evidence 表「原件」列 3 行由纯文字改为 `{ text, url }`，
+  渲染为可点链接；四段 `sources` 共 8 处 `original: false` 补 `secondaryUrl`。
+- 链接共 11 处引用 / 2 个唯一 URL，逐条用 `verify-links.mjs` 真浏览器验活，均 `OK`：
+  - 中华医学会心血管病学分会心力衰竭学组《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》
+    （中华心血管病杂志 2021;49(4):324-332，DOI 10.3760/cma.j.cn112148-20201217-00993）
+    → 中华医学期刊网官方全文页。
+  - ASNC/AHA/ASE/EANM/HFSA/ISA/SCMR/SNMMI 2021 年 PYP 显像补充说明
+    （J Nucl Cardiol 2021;28(4):1769-1774，DOI 10.1007/s12350-020-02455-z）
+    → Springer 出版方页。
+- 未取得项：共识与补充说明的 **PDF 原件仍未存档**，卷期页已核、小节起始页与页码待核；
+  NMPA 氯苯唑酸批件未取得（该行据共识转述，链接指向共识全文页）。本轮 **0 条 nolink**，
+  但「链接可达」不等于「原件已存档」，口径写在数据文件头注释里。
+
+### 看板状态卡（§2.6）
+
+- `prototypes/v0.2/app.js` 看板首卡补四件：eyebrow「状态卡 · 待初始化」／大字「待初始化」28px
+  （不手填天数）／现状行「尚无锚点日；完成三步初始化后自动派生」＋三步说明／出口按钮排
+  （主「开始三步初始化 →」进设置，副「疾病概要：ATTR 是什么？」打开浮窗）。
+- 本台尚无锚点日字段，整卡走「待初始化」兜底；未造任何临床锚点、不改数据模型。
+- `prototypes/v0.2/style.css`：`.status-card` 四件样式。
+
+### 模式层与闸门
+
+- `primer.js` / `primer.css` 同步 starter `assets/patterns/disease-primer.js/.css`（逐字节 SAME）。
+- `prototypes/v0.2/index.html`：顶栏 `.top-actions` 补「?」入口（版本 chip 左侧），
+  供模块接管并挂 a11y 属性。
+- 新增 `scripts/check-primer-links.mjs`（通用 L1–L6 断言），追加到 `npm run check`：
+  本轮 11 项 11 通过 0 失败。
+
 ## 0.6.0 — 2026-10-24（照护者那块补上了：第 30 张表）
 
 0.4.0 留的那块空位，页面上写着「现有 29 张表里没有它，要加得新建 `0004_*.sql`」。
