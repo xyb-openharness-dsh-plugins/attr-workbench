@@ -1,12 +1,22 @@
 # CHANGELOG
 
+## 0.6.2 — 2026-10-27（闸门与文档修正，无功能变更）
+
+- **`probe:primer` 默认目标修正**：脚本从 starter 复制过来时默认指向 `examples/disease-primer.html`，
+  本仓没有这个文件，直接 `npm run probe:primer` 必定 404 并报 7 条 FAIL（看着像浮窗坏了，其实是量错了页）。
+  改为显式指向 `prototypes/v0.2/index.html`，实测 **9/9 通过**。
+- **联网检查移出 check 链**：`check-primer-links` 要用真浏览器访问外网，留在 `npm run check` 里会让
+  离线与 CI 出现与代码无关的假红。改为 `npm run check:primer-links` 单独执行；本轮 11/11 通过。
+- **文档订正**：0.6.1 条目把脚本名写成 `verify-links.mjs`（不存在），改为 `check-primer-links.mjs`；
+  「追加到 `npm run check`」一并改成实际口径。
+
 ## 0.6.1 — 2026-10-27（36 号 v2 补齐：指南可点 + 状态卡）
 
 ### 疾病概要：指南原件可点（§2.5）
 
 - `prototypes/v0.2/primer-data.js`：evidence 表「原件」列 3 行由纯文字改为 `{ text, url }`，
   渲染为可点链接；四段 `sources` 共 8 处 `original: false` 补 `secondaryUrl`。
-- 链接共 11 处引用 / 2 个唯一 URL，逐条用 `verify-links.mjs` 真浏览器验活，均 `OK`：
+- 链接共 11 处引用 / 2 个唯一 URL，逐条用 `scripts/check-primer-links.mjs` 真浏览器验活，均 `OK`：
   - 中华医学会心血管病学分会心力衰竭学组《转甲状腺素蛋白心脏淀粉样变诊断与治疗中国专家共识》
     （中华心血管病杂志 2021;49(4):324-332，DOI 10.3760/cma.j.cn112148-20201217-00993）
     → 中华医学期刊网官方全文页。
@@ -30,8 +40,9 @@
 - `primer.js` / `primer.css` 同步 starter `assets/patterns/disease-primer.js/.css`（逐字节 SAME）。
 - `prototypes/v0.2/index.html`：顶栏 `.top-actions` 补「?」入口（版本 chip 左侧），
   供模块接管并挂 a11y 属性。
-- 新增 `scripts/check-primer-links.mjs`（通用 L1–L6 断言），追加到 `npm run check`：
-  本轮 11 项 11 通过 0 失败。
+- 新增 `scripts/check-primer-links.mjs`（通用 L1–L6 断言）：
+  本轮 11 项 11 通过 0 失败。**不在 `npm run check` 链里**（要联网，离线/CI 会假红），
+  改由 `npm run check:primer-links` 单独跑；0.6.2 起口径与乳腺仓一致。
 
 ## 0.6.0 — 2026-10-24（照护者那块补上了：第 30 张表）
 
