@@ -482,7 +482,6 @@
             },
               h('span', { style: splitterHitStyle, 'aria-hidden': 'true' }),
               (hovering || dragging) ? h('span', { style: splitterGripStyle, 'aria-hidden': 'true' }, '⠿') : null),
-            dragging && !narrow && h('div', { 'aria-hidden': 'true', style: dragShieldStyle }),
             // 原生会话**始终挂载**：卸载会丢掉输入框与草稿状态，所以隐藏走 display。
             h('aside', {
               style: {
@@ -498,6 +497,9 @@
               h('span', null, '点顶栏「AI 对话」调起 DSH 原生会话后，它会固定出现在这一侧。'),
               h('span', null, '没有会话也不影响记录：左侧的型别、两条受累线与记录照常可用。'),
             )),
+            // 拖动时铺一层透明遮罩：指针一旦掠到业务 iframe 上，指针事件就归子文档，
+            // document 上的监听收不到；遮罩让整个面板都成为我们的命中区。
+            dragging && !narrow && h('div', { 'aria-hidden': 'true', style: dragShieldStyle }),
           ),
         )
       }
