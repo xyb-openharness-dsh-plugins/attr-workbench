@@ -28,7 +28,7 @@
    除上面 1)–9) 外与原型一致。 */
 
 const APP_INFO = {
-  version: '0.6.4',
+  version: '0.6.5',
   build: '2026-10-21',
   channel: 'dev',
   channelLabel: '开发版 · 本机优先',
@@ -1206,8 +1206,8 @@ function agentDraft() {
   return lines.join('\n');
 }
 
-/* ---------------- 开发版新增：草稿交付（pinky:agent-draft 合同，AGENT-PANE-DESIGN §7） ----------------
-   链路：预览弹窗 → postMessage({type:'pinky:agent-draft', prompt}) → 宿主面板校验
+/* ---------------- 开发版新增：草稿交付（attr:agent-draft 合同，AGENT-PANE-DESIGN §7） ----------------
+   链路：预览弹窗 → postMessage({type:'attr:agent-draft', prompt}) → 宿主面板校验
    source/origin → 填进原生会话草稿框 → **用户自己按回车**。没有任何一步替用户发送。
    两条边界：
    1. prompt 截到 8000 字（合同上限），截断时明说；
@@ -1225,7 +1225,7 @@ function deliverAgentDraft(prompt) {
     : text;
   if (!inHost()) return 'no-parent';
   try {
-    window.parent.postMessage({ type: 'pinky:agent-draft', prompt: clipped }, window.location.origin);
+    window.parent.postMessage({ type: 'attr:agent-draft', prompt: clipped }, window.location.origin);
     return 'posted';
   } catch {
     return 'no-parent';

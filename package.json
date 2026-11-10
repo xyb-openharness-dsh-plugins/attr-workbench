@@ -1,6 +1,6 @@
 {
   "name": "@xyb-community/attr-workbench",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "本机优先的 ATTR 型别确认、心脏与神经受累记录、治疗耐受与家族筛查准备工作台",
   "private": true,
   "type": "module",
@@ -34,7 +34,7 @@
     "check:package": "node scripts/check-workbench-package.mjs .",
     "check:columns": "node scripts/check-demo-columns.mjs",
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.mjs",
-    "check": "ATTR_CHANNEL=beta node scripts/build-version.mjs --check && node scripts/build-client.mjs --check && node scripts/check-syntax.mjs && node scripts/check-schema.mjs && node scripts/check-wording.mjs && node scripts/check-demo-columns.mjs && node --disable-warning=ExperimentalWarning --test test/*.test.mjs && node scripts/check-version.mjs && node scripts/check-workbench-package.mjs . && node scripts/check-attr.mjs .",
+    "check": "ATTR_CHANNEL=beta node scripts/build-version.mjs --check && node scripts/build-client.mjs --check && node scripts/check-syntax.mjs && node scripts/check-schema.mjs && node scripts/check-wording.mjs && node scripts/check-demo-columns.mjs && node --disable-warning=ExperimentalWarning --test test/*.test.mjs && node scripts/check-version.mjs && node scripts/check-workbench-package.mjs . && node scripts/check-attr.mjs . && node scripts/check-agent-pane-contract.mjs .",
     "pack:check": "npm pack --dry-run",
     "check:install": "node scripts/check-install.mjs",
     "probe:resp": "node scripts/probe-responsive.mjs",
